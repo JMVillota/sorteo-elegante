@@ -1,0 +1,14 @@
+{
+  "winners": [
+    { "id": 1, "name": "María González", "prize": "Viaje a Cancún", "info": "Ticket #1234" },
+    { "id": 2, "name": "Carlos Rodríguez", "prize": "iPhone 15 Pro", "info": "Ticket #2345" },
+    { "id": 3, "name": "Laura Martínez", "prize": "Smart TV 65\"", "info": "Ticket #3456" },
+    { "id": 4, "name": "Juan Pérez", "prize": "MacBook Pro", "info": "Ticket #4567" },
+    { "id": 5, "name": "Ana López", "prize": "PlayStation 5", "info": "Ticket #5678" },
+    { "id": 6, "name": "Miguel Torres", "prize": "Nintendo Switch", "info": "Ticket #6789" },
+    { "id": 7, "name": "Sofía Ramírez", "prize": "Cámara DSLR", "info": "Ticket #7890" },
+    { "id": 8, "name": "Roberto Díaz", "prize": "Smartwatch", "info": "Ticket #8901" },
+    { "id": 9, "name": "Patricia Morales", "prize": "Audífonos Inalámbricos", "info": "Ticket #9012" },
+    { "id": 10, "name": "Fernando Castro", "prize": "Tablet Pro", "info": "Ticket #0123" }
+  ]
+}
