@@ -1,47 +1,45 @@
+// src/components/RouletteWheel.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { Howl } from 'howler';
 import logoTransparente from '../assets/logo-transparente.png';
 
-const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) => {
+const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, allPrizesAwarded, selectedPrize }) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState(null);
   const [currentParticipant, setCurrentParticipant] = useState(null);
   
-  // Referencias para cada rodillo y efectos
   const reel1Ref = useRef(null);
   const reel2Ref = useRef(null);
   const reel3Ref = useRef(null);
+  const leverRef = useRef(null);
+  const leverKnobRef = useRef(null);
   const nameDisplayRef = useRef(null);
   const spinTimerRef = useRef(null);
   const audioRef = useRef(null);
   
-  // Obtener números de factura divididos en 3 partes
   const generateSlotSymbols = () => {
     const symbols = {
-      reel1: [], // establecimiento (001)
-      reel2: [], // punto emisión (001)
-      reel3: []  // secuencial (000000001)
+      reel1: [], // "FC" part
+      reel2: [], // First half of numbers
+      reel3: []  // Second half of numbers
     };
     
-    // Generar 15 conjuntos aleatorios para cada rodillo
     for (let i = 0; i < 15; i++) {
-      const establecimiento = Math.floor(1 + Math.random() * 999).toString().padStart(3, '0');
-      const puntoEmision = Math.floor(1 + Math.random() * 999).toString().padStart(3, '0');
-      const secuencial = Math.floor(1 + Math.random() * 999999999).toString().padStart(9, '0');
+      symbols.reel1.push("FC");
       
-      symbols.reel1.push(establecimiento);
-      symbols.reel2.push(puntoEmision);
-      symbols.reel3.push(secuencial);
+      const randomNum1 = Math.floor(10000 + Math.random() * 90000).toString();
+      const randomNum2 = Math.floor(10000 + Math.random() * 90000).toString();
+      
+      symbols.reel2.push(randomNum1);
+      symbols.reel3.push(randomNum2);
     }
     
     return symbols;
   };
   
-  // Estado para los símbolos en los rodillos
   const [reelSymbols, setReelSymbols] = useState(generateSlotSymbols());
   
-  // Reset cuando llega un nuevo ganador desde afuera
   useEffect(() => {
     if (currentWinner && !isSpinning) {
       setWinner(null);
@@ -49,9 +47,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
     }
   }, [currentWinner, isSpinning]);
   
-  // Inicializar sonidos y animaciones
   useEffect(() => {
-    // Inicializar sonidos
     if (!audioRef.current) {
       audioRef.current = {
         slotSpin: new Howl({
@@ -69,24 +65,26 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
           src: ['/assets/sounds/winner.mp3'],
           volume: 0.9,
           preload: true
+        }),
+        leverPull: new Howl({
+          src: ['/assets/sounds/lever-pull.mp3'],
+          volume: 0.8,
+          preload: true
         })
       };
       
-      // Precargar sonidos
       audioRef.current.slotSpin.load();
       audioRef.current.slotStop.load();
       audioRef.current.winnerSound.load();
+      audioRef.current.leverPull.load();
     }
     
-    // Efectos iniciales para los rodillos
     const applyInitialEffects = () => {
-      // Aplica efecto de degradado a los rodillos para simular curvatura
       [reel1Ref, reel2Ref, reel3Ref].forEach(reelRef => {
         if (reelRef.current) {
           const items = reelRef.current.querySelectorAll('.reel-item');
           
           items.forEach((item, i) => {
-            // El item central (índice 2) está a escala completa
             const distanceFromCenter = Math.abs(i - 2);
             const scale = 1 - (distanceFromCenter * 0.05);
             const opacity = 1 - (distanceFromCenter * 0.2);
@@ -94,7 +92,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
             gsap.set(item, {
               scale,
               opacity,
-              rotateX: -distanceFromCenter * 10 // Efecto 3D sutil
+              rotateX: -distanceFromCenter * 10
             });
           });
         }
@@ -103,7 +101,6 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
     
     applyInitialEffects();
     
-    // Limpiar
     return () => {
       if (audioRef.current) {
         Object.values(audioRef.current).forEach(sound => {
@@ -117,32 +114,63 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
     };
   }, []);
   
-  // Función para girar los rodillos
+  // Animar la palanca (arriba-abajo)
+  const animateLever = () => {
+    if (audioRef.current) {
+      audioRef.current.leverPull.play();
+    }
+    
+    // Animación de la palanca hacia abajo
+    gsap.timeline()
+      .to(leverRef.current, {
+        y: 30, // Movimiento vertical hacia abajo
+        duration: 0.4,
+        ease: 'power1.out'
+      })
+      .to(leverRef.current, {
+        y: 0, // Regresa a la posición original
+        duration: 0.5,
+        ease: 'elastic.out(1, 0.3)',
+        delay: 0.2
+      });
+      
+    // Animar el botón (knob) de la palanca
+    gsap.timeline()
+      .to(leverKnobRef.current, {
+        scale: 0.8,
+        duration: 0.4,
+        ease: 'power1.out'
+      })
+      .to(leverKnobRef.current, {
+        scale: 1,
+        duration: 0.5,
+        ease: 'elastic.out(1, 0.3)',
+        delay: 0.2
+      });
+  };
+  
   const spinReels = () => {
-    if (isSpinning || participants.length === 0) return;
+    if (isSpinning || participants.length === 0 || allPrizesAwarded) return;
     
     setIsSpinning(true);
     setWinner(null);
     
-    // Seleccionar ganador aleatorio
+    animateLever();
+    
     const randomIndex = Math.floor(Math.random() * participants.length);
     const selectedWinner = participants[randomIndex];
     
-    // Reproducir sonido
     if (audioRef.current) {
       audioRef.current.slotSpin.play();
     }
     
-    // Generar nuevos símbolos para los rodillos
     setReelSymbols(generateSlotSymbols());
     
-    // Animación de números de factura rápida durante el giro
     let nameIndex = 0;
     const nameInterval = setInterval(() => {
       const randomPartIndex = Math.floor(Math.random() * participants.length);
       setCurrentParticipant(participants[randomPartIndex]);
       
-      // Efecto visual en el nombre
       if (nameDisplayRef.current) {
         gsap.fromTo(nameDisplayRef.current, 
           { opacity: 0.7, scale: 0.97 },
@@ -153,53 +181,39 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
       nameIndex++;
     }, 100);
     
-    // Seleccionar posición de gane en cada rodillo
-    const winPosition = 2; // El slot central (índice 2) será la posición ganadora
+    const winPosition = 2;
     
-    // Dividir la factura del ganador en 3 partes
-    let winnerInvoiceParts = ['001', '001', '000000001']; // Valores por defecto
+    const invoiceNumber = selectedWinner.invoiceNumber;
+    const fcPart = invoiceNumber.substring(0, 2);
+    const part2 = invoiceNumber.substring(2, 6);
+    const part3 = invoiceNumber.substring(6);
     
-    if (selectedWinner.invoiceNumber) {
-      const parts = selectedWinner.invoiceNumber.split('-');
-      if (parts.length === 3) {
-        winnerInvoiceParts = parts;
-      }
-    }
-    
-    // Agregar los valores del ganador a cada rodillo en la posición ganadora
     const newSymbols = {
       reel1: [...reelSymbols.reel1],
       reel2: [...reelSymbols.reel2],
       reel3: [...reelSymbols.reel3]
     };
     
-    newSymbols.reel1[winPosition] = winnerInvoiceParts[0];
-    newSymbols.reel2[winPosition] = winnerInvoiceParts[1];
-    newSymbols.reel3[winPosition] = winnerInvoiceParts[2];
+    newSymbols.reel1[winPosition] = fcPart;
+    newSymbols.reel2[winPosition] = part2;
+    newSymbols.reel3[winPosition] = part3;
     
     setReelSymbols(newSymbols);
     
-    // Crear las animaciones de giro para cada rodillo
     const spinReel = (reelRef, delay, duration) => {
       if (!reelRef.current) return;
       
-      // Número de "vueltas" que dará el rodillo
       const numSpins = 30 + Math.floor(Math.random() * 10);
-      
-      // Altura de cada item del rodillo
       const itemHeight = reelRef.current.querySelector('.reel-item')?.offsetHeight || 80;
       
-      // Animación de giro
       return gsap.to(reelRef.current, {
-        y: -(numSpins * 5 * itemHeight), // Da varias vueltas
+        y: -(numSpins * 5 * itemHeight),
         duration,
         delay,
         ease: "power2.inOut",
         onComplete: () => {
-          // Resetear posición y actualizar el contenido
           gsap.set(reelRef.current, { y: 0 });
           
-          // Aplicar efectos de escala y opacidad a los items
           const items = reelRef.current.querySelectorAll('.reel-item');
           items.forEach((item, i) => {
             const distanceFromCenter = Math.abs(i - winPosition);
@@ -213,7 +227,6 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
               duration: 0.3
             });
             
-            // Destacar la posición ganadora
             if (i === winPosition) {
               gsap.to(item, {
                 backgroundColor: 'rgba(255, 215, 0, 0.3)',
@@ -226,31 +239,24 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
       });
     };
     
-    // Establece diferentes tiempos para cada rodillo (como en las máquinas reales)
     const tl = gsap.timeline();
     
-    tl.add(spinReel(reel1Ref, 0, 2), 0); // El primer rodillo gira inmediatamente
-    tl.add(spinReel(reel2Ref, 0.3, 2.3), 0); // El segundo rodillo comienza un poco después
-    tl.add(spinReel(reel3Ref, 0.6, 2.6), 0); // El tercer rodillo es el último
+    tl.add(spinReel(reel1Ref, 0, 2), 0);
+    tl.add(spinReel(reel2Ref, 0.3, 2.3), 0);
+    tl.add(spinReel(reel3Ref, 0.6, 2.6), 0);
     
-    // Cuando todos los rodillos se detienen
     tl.call(() => {
-      // Detener el cambio de participante y establecer el ganador
       clearInterval(nameInterval);
       setCurrentParticipant(selectedWinner);
       
-      // Detener sonido de giro e iniciar sonido de parada
       if (audioRef.current) {
         audioRef.current.slotSpin.stop();
         audioRef.current.slotStop.play();
       }
       
-      // Pausa breve
       setTimeout(() => {
-        // Mostrar ganador con efectos
         setWinner(selectedWinner);
         
-        // Efecto de destello en la línea de gane
         gsap.fromTo(".win-line", 
           { opacity: 0, scaleY: 0 },
           { 
@@ -262,26 +268,23 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
           }
         );
         
-        // Animar el display del ganador
         gsap.fromTo(nameDisplayRef.current, 
           { scale: 1 },
           { 
             scale: 1.05, 
-            boxShadow: '0 0 20px rgba(255, 200, 50, 0.8)',
-            backgroundColor: 'rgba(255, 200, 50, 0.2)',
-            borderColor: 'rgba(255, 200, 50, 0.8)',
+            boxShadow: '0 0 20px rgba(255, 215, 0, 0.8)',
+            backgroundColor: 'rgba(255, 215, 0, 0.2)',
+            borderColor: 'rgba(255, 215, 0, 0.8)',
             repeat: 3,
             yoyo: true,
             duration: 0.3
           }
         );
         
-        // Reproducir sonido de ganador
         if (audioRef.current) {
           audioRef.current.winnerSound.play();
         }
         
-        // Finalizar todo
         spinTimerRef.current = setTimeout(() => {
           setIsSpinning(false);
           onWinnerSelected(selectedWinner);
@@ -291,52 +294,64 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
   };
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center px-4">
+    <div className="w-full flex flex-col items-center justify-center px-4 py-6 relative">
+      {/* Panel informativo del premio actual */}
+      <div className="mb-6 bg-red-700 p-4 rounded-xl border border-yellow-300 flex items-center gap-4 w-full max-w-2xl">
+        <div className="text-4xl">
+          {selectedPrize?.name?.includes("Refrigeradora") ? "🧊" : 
+           selectedPrize?.name?.includes("Moto") ? "🛵" : 
+           selectedPrize?.name?.includes("Aspiradora") ? "🧹" : "☕"}
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-yellow-200">Premio actual</h3>
+          <p className="text-white text-xl">{selectedPrize?.name || "Selecciona un premio"}</p>
+        </div>
+      </div>
+      
       {/* Mostrar participante actual arriba */}
-      <div className="text-center mb-6 h-28 flex flex-col items-center justify-center">
+      <div className="text-center mb-6 h-28 flex flex-col items-center justify-center w-full max-w-2xl">
         <div 
           ref={nameDisplayRef}
-          className={`relative bg-purple-900/80 px-8 py-4 rounded-xl border border-yellow-400/20 transition-all duration-200 backdrop-blur-sm
-                     ${winner ? 'border-yellow-400/80' : ''}`}
-          style={{
-            minWidth: '300px',
-            maxWidth: '90%'
-          }}
+          className={`relative bg-red-900 px-8 py-4 rounded-xl border-2 ${winner ? 'border-yellow-300' : 'border-pink-300/40'} transition-all duration-200 backdrop-blur-sm w-full`}
         >
-          <div className="text-sm text-yellow-400/90 mb-1 uppercase tracking-wider">
+          <div className="text-sm text-yellow-200 mb-1 uppercase tracking-wider">
             PARTICIPANTE
           </div>
           <div className="text-xl font-bold text-white">
-            {currentParticipant ? currentParticipant.name : 'Presiona Girar'}
+            {currentParticipant ? currentParticipant.name : 'Presiona el botón para girar'}
           </div>
           {currentParticipant && (
-            <div className="text-sm text-yellow-400/80 mt-1">
-              Factura SRI: {currentParticipant.invoiceNumber || 'N/A'}
+            <div className="flex justify-between mt-1 text-sm">
+              <span className="text-yellow-200">
+                Factura: {currentParticipant.invoiceNumber || 'N/A'}
+              </span>
+              <span className="text-yellow-200">
+                Fecha: {currentParticipant.fechaFormateada || 'N/A'}
+              </span>
             </div>
           )}
           
-          {/* Efectos decorativos */}
           {winner && (
-            <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400/0 via-yellow-400/30 to-yellow-400/0 rounded-xl -z-10 animate-pulse"></div>
+            <div className="absolute -inset-1 bg-gradient-to-r from-yellow-300/0 via-yellow-300/30 to-yellow-300/0 rounded-xl -z-10 animate-pulse"></div>
           )}
         </div>
       </div>
       
       {/* Máquina tragamonedas con 3 rodillos horizontales */}
-      <div className="relative w-full max-w-md h-[400px] border-8 border-yellow-600 rounded-xl bg-gradient-to-b from-purple-800 to-purple-950 mb-8 overflow-hidden shadow-[0_0_30px_rgba(255,150,0,0.4)]">
+      <div className="relative w-full max-w-2xl h-[400px] border-8 border-yellow-700 rounded-xl bg-gradient-to-b from-red-700 to-red-900 mb-8 overflow-visible shadow-[0_0_30px_rgba(255,215,0,0.4)]">
         {/* Parte superior de la máquina */}
         <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-yellow-600 to-yellow-700 flex items-center justify-center">
-          <div className="text-2xl font-bold text-white text-center tracking-wider drop-shadow-lg transform -rotate-1">
-            SORTEO DE FACTURAS
+          <div className="text-2xl font-bold text-white text-center tracking-wider drop-shadow-lg">
+            SORTEO DÍA DE LA MADRE
           </div>
           <div className="absolute top-0 left-0 right-0 flex justify-between px-3">
             {[0, 1, 2, 3, 4, 5, 6].map(i => (
               <div 
                 key={`top-light-${i}`}
-                className="w-4 h-4 rounded-full bg-red-500"
+                className="w-4 h-4 rounded-full bg-yellow-300"
                 style={{ 
                   animation: `blink 1s infinite ${i * 0.2}s`,
-                  boxShadow: '0 0 10px rgba(255, 0, 0, 0.6)'
+                  boxShadow: '0 0 10px rgba(255, 215, 0, 0.6)'
                 }}
               ></div>
             ))}
@@ -344,12 +359,12 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
         </div>
         
         {/* Contenedor principal de los 3 rodillos */}
-        <div className="absolute top-24 inset-x-4 bottom-20 bg-black rounded-lg border-4 border-yellow-700 overflow-hidden flex shadow-inner">
+        <div className="absolute top-24 inset-x-4 bottom-20 bg-black rounded-lg border-4 border-yellow-600 overflow-hidden flex shadow-inner">
           {/* Línea de gane (horizontal en el centro) */}
           <div className="win-line absolute left-0 right-0 h-[80px] top-1/2 -translate-y-1/2 border-y-2 border-yellow-500 bg-yellow-500/10 z-10 pointer-events-none opacity-0"></div>
           
-          {/* Rodillo 1 - Establecimiento (001) */}
-          <div className="flex-1 h-full relative overflow-hidden border-r-2 border-yellow-700">
+          {/* Rodillo 1 - FC */}
+          <div className="flex-1 h-full relative overflow-hidden border-r-2 border-yellow-600">
             <div 
               ref={reel1Ref}
               className="absolute inset-x-0 w-full transition-transform will-change-transform"
@@ -357,7 +372,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
               {reelSymbols.reel1.map((symbol, idx) => (
                 <div 
                   key={`reel1-${idx}`}
-                  className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-red-700 to-red-900 border-b border-yellow-900/50"
+                  className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-red-600 to-red-800 border-b border-yellow-900/50"
                 >
                   <div className="text-3xl font-bold text-white">
                     {symbol}
@@ -367,8 +382,8 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
             </div>
           </div>
           
-          {/* Rodillo 2 - Punto de Emisión (001) */}
-          <div className="flex-1 h-full relative overflow-hidden border-r-2 border-yellow-700">
+          {/* Rodillo 2 - Primera parte del número */}
+          <div className="flex-1 h-full relative overflow-hidden border-r-2 border-yellow-600">
             <div 
               ref={reel2Ref}
               className="absolute inset-x-0 w-full transition-transform will-change-transform"
@@ -376,7 +391,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
               {reelSymbols.reel2.map((symbol, idx) => (
                 <div 
                   key={`reel2-${idx}`}
-                  className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-blue-700 to-blue-900 border-b border-yellow-900/50"
+                  className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-red-500 to-red-700 border-b border-yellow-900/50"
                 >
                   <div className="text-3xl font-bold text-white">
                     {symbol}
@@ -386,7 +401,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
             </div>
           </div>
           
-          {/* Rodillo 3 - Secuencial (000000001) */}
+          {/* Rodillo 3 - Segunda parte del número */}
           <div className="flex-1 h-full relative overflow-hidden">
             <div 
               ref={reel3Ref}
@@ -395,7 +410,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
               {reelSymbols.reel3.map((symbol, idx) => (
                 <div 
                   key={`reel3-${idx}`}
-                  className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-green-700 to-green-900 border-b border-yellow-900/50"
+                  className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-red-400 to-red-600 border-b border-yellow-900/50"
                 >
                   <div className="text-2xl font-bold text-white leading-tight text-center">
                     {symbol}
@@ -416,57 +431,68 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
                 className="w-4 h-4 rounded-full bg-yellow-300"
                 style={{ 
                   animation: `blink 1s infinite ${i * 0.15}s`,
-                  boxShadow: '0 0 10px rgba(255, 255, 0, 0.6)'
+                  boxShadow: '0 0 10px rgba(255, 215, 0, 0.6)'
                 }}
               ></div>
             ))}
           </div>
           <div className="text-lg font-bold text-white text-center mx-8">
-            SORTEO DÍA DE LA MADRE
+            PRODISPRO 2025
           </div>
         </div>
         
-        {/* Palanca lateral */}
-        <div className="absolute right-[-20px] top-1/2 -translate-y-1/2 flex flex-col items-center">
-          <div className="w-6 h-16 rounded-full bg-gradient-to-b from-red-500 to-red-700 shadow-lg"></div>
-          <div className="w-4 h-36 bg-gradient-to-b from-gray-300 to-gray-500 rounded-b-full"></div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-b from-red-500 to-red-700 shadow-lg"></div>
+        {/* Palanca lateral vertical con botón para girar */}
+        <div className="absolute right-[-60px] top-1/2 -translate-y-1/2 z-10">
+          <div 
+            ref={leverRef} 
+            className="flex flex-col items-center transition-transform"
+          >
+            <div className="w-8 h-40 bg-gradient-to-b from-gray-400 to-gray-600 rounded-full relative">
+              {/* Botón en la palanca */}
+              <button
+                ref={leverKnobRef}
+                onClick={spinReels}
+                disabled={isSpinning || allPrizesAwarded}
+                className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full shadow-lg transition-all duration-300 transform
+                  ${!isSpinning && !allPrizesAwarded ? 
+                    'bg-gradient-to-b from-red-500 to-red-700 hover:scale-110 active:scale-95' : 
+                    'bg-gradient-to-b from-gray-400 to-gray-600 cursor-not-allowed opacity-70'}`}
+              ></button>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-b from-gray-300 to-gray-500 shadow-lg"></div>
+          </div>
         </div>
+        
+        {/* Corazones decorativos */}
+        <div className="absolute top-[-20px] left-[-20px] w-12 h-12 text-2xl animate-float">❤️</div>
+        <div className="absolute bottom-[-15px] right-[-30px] w-10 h-10 text-xl animate-float" style={{ animationDelay: '1.5s' }}>❤️</div>
+        
+        {/* Mensaje de sorteo completo */}
+        {allPrizesAwarded && (
+          <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20 backdrop-blur-sm">
+            <div className="bg-red-800 p-6 rounded-xl border-2 border-yellow-300 shadow-lg max-w-md text-center">
+              <div className="text-3xl mb-2">🎉</div>
+              <h3 className="text-xl font-bold text-yellow-200 mb-2">¡Sorteo Completo!</h3>
+              <p className="text-white">Todos los premios han sido sorteados exitosamente</p>
+            </div>
+          </div>
+        )}
         
         {/* Reflejo y brillo en la superficie */}
         <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_70%)] pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,215,0,0.1)_0%,transparent_70%)] pointer-events-none"></div>
       </div>
       
-      {/* Botón de girar */}
-      <button
-        onClick={spinReels}
-        disabled={isSpinning}
-        className={`
-          px-10 py-4 rounded-full font-bold uppercase tracking-wider relative overflow-hidden
-          ${!isSpinning ? 
-            'bg-gradient-to-r from-yellow-500 to-red-600 text-white shadow-lg hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_15px_rgba(255,215,0,0.5)]' : 
-            'bg-gray-700 text-gray-400 cursor-not-allowed'}
-        `}
-      >
-        {/* Efecto de brillo en el botón */}
-        {!isSpinning && (
-          <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer"></div>
+      {/* Instrucciones */}
+      <div className="text-center text-sm text-white mt-2 mb-4">
+        {!allPrizesAwarded ? (
+          <p>Presiona el botón rojo de la palanca para girar la ruleta</p>
+        ) : (
+          <p>El sorteo ha finalizado. ¡Todos los premios han sido otorgados!</p>
         )}
-        
-        {isSpinning ? (
-          <span className="flex items-center">
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Girando...
-          </span>
-        ) : 'Girar Ruleta'}
-      </button>
+      </div>
       
-      {/* CSS para animaciones */}
-      <style jsx>{`
+      <style>{`
         @keyframes blink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
@@ -475,15 +501,6 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner }) 
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(0.8); }
-        }
-        
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
         }
       `}</style>
     </div>

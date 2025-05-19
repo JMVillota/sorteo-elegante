@@ -25,14 +25,12 @@ const PrizeSelection = ({ prizes, selectedPrize, onSelectPrize, awardedPrizes = 
               onClick={() => !isAwarded && onSelectPrize(prize)}
               disabled={isAwarded}
             >
-              {/* Efecto de brillo al seleccionar */}
               {selectedPrize && selectedPrize.id === prize.id && !isAwarded && (
                 <div className="absolute inset-0 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer"></div>
                 </div>
               )}
               
-              {/* Indicador de premio otorgado */}
               {isAwarded && (
                 <div className="absolute -right-8 top-0 bg-green-600 text-white font-bold py-1 px-8 transform rotate-45 shadow-md z-10 text-sm">
                   GANADO

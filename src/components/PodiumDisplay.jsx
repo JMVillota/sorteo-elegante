@@ -1,3 +1,4 @@
+// src/components/PodiumDisplay.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import Confetti from 'react-confetti';
@@ -13,7 +14,6 @@ const PodiumDisplay = ({ winners, onReset }) => {
     height: window.innerHeight
   });
 
-  // Efecto para manejar el tamaño de ventana para el confetti
   useEffect(() => {
     const handleResize = () => {
       setWindowDimensions({
@@ -26,9 +26,7 @@ const PodiumDisplay = ({ winners, onReset }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Animación inicial
   useEffect(() => {
-    // Sonido de celebración final
     const fanfareSound = new Howl({
       src: ['/assets/sounds/grand-finale.mp3'],
       volume: 0.8,
@@ -37,13 +35,11 @@ const PodiumDisplay = ({ winners, onReset }) => {
     
     fanfareSound.play();
     
-    // Animar el contenedor con GSAP
     gsap.fromTo(containerRef.current,
       { opacity: 0, y: 50 },
       { opacity: 1, y: 0, duration: 1, ease: "power2.out" }
     );
     
-    // Animar cada podio entrando de forma escalonada
     podiumsRef.current.forEach((podium, index) => {
       if (podium) {
         gsap.fromTo(podium,
@@ -59,7 +55,6 @@ const PodiumDisplay = ({ winners, onReset }) => {
       }
     });
     
-    // Detener confetti después de un tiempo
     const timer = setTimeout(() => {
       setShowConfetti(false);
     }, 12000);
@@ -70,36 +65,58 @@ const PodiumDisplay = ({ winners, onReset }) => {
     };
   }, []);
 
-  // Ordenar ganadores por posición
-  const sortedWinners = [...winners].sort((a, b) => {
-    // Lógica personalizada para ordenar por ID del premio
-    return a.prize.id - b.prize.id;
-  });
+  const getSortedWinners = () => {
+    return [...winners].sort((a, b) => {
+      const getPrizeImportance = (prize) => {
+        if (prize.name.includes("Refrigeradora")) return 0;
+        if (prize.name.includes("Moto")) return 1;
+        if (prize.name.includes("Aspiradora")) return 2;
+        if (prize.name.includes("Cafetera")) {
+          const match = prize.name.match(/\((\d+)\)/);
+          return match ? 3 + parseInt(match[1]) : 3;
+        }
+        return 99;
+      };
+      
+      return getPrizeImportance(a.prize) - getPrizeImportance(b.prize);
+    });
+  };
 
-  // Asignar colores a los podios
-  const podiumColors = [
-    "from-yellow-300 to-yellow-500", // 1er lugar - oro
-    "from-gray-300 to-gray-500",     // 2do lugar - plata
-    "from-amber-700 to-amber-900",   // 3er lugar - bronce
-    "from-blue-400 to-blue-600"      // 4to lugar - azul
-  ];
+  const sortedWinners = getSortedWinners();
 
-  // Determinar el orden y alturas de los podios
-  // Primero y segundo en el centro, tercero y cuarto a los lados
-  const podiumOrder = sortedWinners.length >= 4 
-    ? [1, 0, 2, 3]  // Si hay 4+ ganadores, mostramos 4 podios
-    : sortedWinners.length === 3 
-      ? [1, 0, 2]   // Si hay 3 ganadores
-      : sortedWinners.length === 2 
-        ? [1, 0]    // Si hay 2 ganadores
-        : [0];      // Si solo hay 1 ganador
+  const calculatePodiumPositions = () => {
+    if (winners.length === 7) {
+      return [1, 0, 2, 3, 4, 5, 6];
+    }
+    
+    return winners.length <= 3 
+      ? [1, 0, 2]
+      : Array.from({ length: winners.length }, (_, i) => i);
+  };
 
-  // Alturas de los podios según posición
-  const podiumHeights = ["h-72", "h-64", "h-56", "h-48"];
+  const podiumOrder = calculatePodiumPositions();
+
+  const getPodiumColor = (prize) => {
+    if (prize.name.includes("Refrigeradora")) return "from-yellow-300 to-yellow-500";
+    if (prize.name.includes("Moto")) return "from-yellow-400 to-red-500";
+    if (prize.name.includes("Aspiradora")) return "from-red-400 to-red-600";
+    return "from-red-500 to-red-700";
+  };
+
+  const getHeightClass = (index) => {
+    const heights = ["h-72", "h-64", "h-56", "h-48", "h-40", "h-40", "h-40"];
+    return heights[index] || "h-40";
+  };
+
+  const getPrizeEmoji = (prize) => {
+    if (prize.name.includes("Refrigeradora")) return "🧊";
+    if (prize.name.includes("Moto")) return "🛵";
+    if (prize.name.includes("Aspiradora")) return "🧹";
+    return "☕";
+  };
 
   return (
-    <div ref={containerRef} className="w-full h-full flex flex-col items-center justify-center p-4">
-      {/* Confetti */}
+    <div ref={containerRef} className="w-full h-full flex flex-col items-center justify-center p-4 relative">
       {showConfetti && (
         <Confetti
           width={windowDimensions.width}
@@ -107,72 +124,66 @@ const PodiumDisplay = ({ winners, onReset }) => {
           recycle={true}
           numberOfPieces={300}
           gravity={0.15}
-          colors={['#ffc857', '#ff3e7f', '#6a26cd', '#2ec5ce', '#ffffff']}
+          colors={['#ffc0cb', '#ff0000', '#ffb6c1', '#e91e63', '#ffffff']}
         />
       )}
 
-      {/* Título */}
-      <div className="text-center mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-pink animate-pulse-slow">
+      <div className="text-center mb-10 relative z-10">
+        <h1 className="text-4xl md:text-5xl font-bold text-yellow-300 mb-2">
           ¡Grandes Ganadores!
         </h1>
-        <p className="text-xl text-accent/80 mt-2">Sorteo completado exitosamente</p>
+        <p className="text-xl text-white mt-2">Sorteo Día de la Madre completado exitosamente</p>
 
-        {/* Logo Prodispro */}
-        <div className="mt-4 w-24 h-24 mx-auto bg-purple-900/60 rounded-full border-2 border-yellow-400 p-2 shadow-lg">
-          <img 
-            src={logoTransparente} 
-            alt="Prodispro" 
-            className="w-full h-full object-contain"
-          />
+        <div className="mt-4 mx-auto bg-red-900/60 rounded-full border-2 border-yellow-300 p-2 shadow-lg flex items-center justify-center">
+          <img src={logoTransparente} alt="Prodispro" className="h-20 object-contain" />
         </div>
       </div>
 
-      {/* Podios */}
-      <div className="flex flex-wrap justify-center items-end gap-4 sm:gap-6 mb-12">
+      <div className="flex flex-wrap justify-center items-end gap-5 mb-8 relative z-10">
         {podiumOrder.map((sortPosition, idx) => {
           if (sortPosition >= sortedWinners.length) return null;
           
           const winner = sortedWinners[sortPosition];
-          // Determinar posición real (para mostrar el número y medalla)
           const position = sortPosition;
-          // Altura según posición en podiumOrder
-          const podiumHeight = podiumHeights[idx];
+          const podiumHeight = getHeightClass(idx);
+          const podiumColor = getPodiumColor(winner.prize);
+          const prizeEmoji = getPrizeEmoji(winner.prize);
           
           return (
             <div
               key={winner.prize.id}
               ref={el => podiumsRef.current[idx] = el}
-              className={`flex flex-col items-center transform ${idx === 1 ? 'order-1' : idx === 0 ? 'order-2' : idx === 2 ? 'order-3' : 'order-4'}`}
+              className={`flex flex-col items-center transform ${
+                winners.length <= 3 
+                  ? idx === 1 ? 'order-1' : idx === 0 ? 'order-2' : 'order-3' 
+                  : `order-${idx+1}`
+              } ${winners.length > 6 ? 'scale-90' : ''}`}
             >
-              {/* Ganador */}
               <div className="flex flex-col items-center mb-3">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-r from-accent to-pink flex items-center justify-center text-xl font-bold border-4 border-white shadow-lg">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-red-500 to-red-700 flex items-center justify-center text-lg font-bold border-2 border-white shadow-lg">
                   {winner.participant.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="text-center mt-2">
-                  <p className="font-bold text-white">{winner.participant.name}</p>
-                  <p className="text-accent text-sm">#{winner.participant.ticketNumber}</p>
+                  <p className="font-bold text-white text-sm">{winner.participant.name}</p>
+                  <p className="text-xs text-yellow-200 truncate">{winner.participant.invoiceNumber}</p>
+                  <p className="text-xs text-yellow-200/80 truncate">{winner.participant.fechaFormateada}</p>
+                  <p className="text-xs text-yellow-200/80 truncate">{winner.participant.ciudad}</p>
                 </div>
                 
-                {/* Premio */}
-                <div className="mt-2 px-3 py-1 rounded-full bg-primary-dark/70 border border-accent/50 text-sm font-medium shadow-inner text-white">
+                <div className="mt-1 px-3 py-1 rounded-full bg-red-900 border border-yellow-300 text-sm font-medium shadow-inner text-white">
                   {winner.prize.name}
                 </div>
                 
-                {/* Posición */}
                 <div className="mt-2 text-2xl">
-                  {position === 0 ? "🥇" : position === 1 ? "🥈" : position === 2 ? "🥉" : "🏅"}
+                  {prizeEmoji}
                 </div>
               </div>
               
-              {/* Podio */}
-              <div className={`w-24 sm:w-32 ${podiumHeight} rounded-t-lg bg-gradient-to-b ${podiumColors[position]} relative overflow-hidden flex items-center justify-center shadow-lg`}>
-                <span className="text-2xl sm:text-3xl font-bold text-white">
+              <div className={`w-24 sm:w-28 ${podiumHeight} rounded-t-lg bg-gradient-to-b ${podiumColor} relative overflow-hidden flex items-center justify-center shadow-lg`}>
+                <span className="text-xl sm:text-2xl font-bold text-white">
                   {position + 1}
                 </span>
                 
-                {/* Efectos decorativos del podio */}
                 <div className="absolute inset-x-0 top-0 h-4 bg-gradient-to-r from-white/0 via-white/30 to-white/0"></div>
                 <div className="absolute inset-x-0 bottom-0 h-6 bg-black/20"></div>
               </div>
@@ -181,46 +192,44 @@ const PodiumDisplay = ({ winners, onReset }) => {
         })}
       </div>
       
-      {/* Listado completo de ganadores */}
-      <div className="w-full max-w-md bg-primary-dark/70 rounded-xl p-4 border border-accent/30 shadow-lg">
-        <h2 className="text-xl font-bold text-accent mb-3 text-center">Todos los Ganadores</h2>
+      <div className="w-full max-w-4xl overflow-x-auto">
+        <h2 className="text-xl font-bold text-yellow-300 mb-3 text-center">
+          🏆 Todos los Ganadores 🏆
+        </h2>
         
-        <div className="max-h-[250px] overflow-y-auto pr-2">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-accent/30">
-                <th className="text-left p-2 text-yellow-300">Premio</th>
-                <th className="text-left p-2 text-yellow-300">Ganador</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedWinners.map((winner, index) => (
-                <tr key={index} className="border-b border-accent/10 hover:bg-white/5 transition-colors">
-                  <td className="p-2">{winner.prize.name}</td>
-                  <td className="p-2">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-accent to-pink flex items-center justify-center text-sm font-bold mr-2">
-                        {winner.participant.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-white">{winner.participant.name}</p>
-                        <p className="text-xs text-accent/70">#{winner.participant.ticketNumber}</p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex space-x-4 pb-4 min-w-max">
+          {sortedWinners.map((winner, index) => (
+            <div
+              key={index}
+              className="bg-red-800 rounded-lg p-4 border border-yellow-300/60 shadow-lg w-56"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-sm font-bold border border-yellow-300/40">
+                  {winner.participant.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-white truncate">{winner.participant.name}</p>
+                  <p className="text-xs text-yellow-200/80 truncate">{winner.participant.ciudad}</p>
+                </div>
+              </div>
+              <div className="py-1 px-2 bg-red-900 rounded border border-yellow-300/40 text-center">
+                <p className="text-sm font-bold text-yellow-200">
+                  {getPrizeEmoji(winner.prize)} {winner.prize.name}
+                </p>
+              </div>
+              <div className="mt-2 text-xs text-white/80">
+                <p>Factura: {winner.participant.invoiceNumber}</p>
+                <p>Fecha: {winner.participant.fechaFormateada}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       
-      {/* Botón para reiniciar el sorteo */}
       <button
         onClick={onReset}
-        className="mt-8 px-8 py-3 bg-gradient-to-r from-accent to-pink rounded-full text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
+        className="mt-8 px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-full text-red-900 font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
       >
-        {/* Efecto de brillo en el botón */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer"></div>
         
         <span className="flex items-center">
