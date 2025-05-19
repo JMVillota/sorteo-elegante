@@ -8,18 +8,23 @@ const ParticipantsList = ({ participants, onStartRoulette, selectedPrize }) => {
       </h2>
       
       {/* Lista de participantes con scroll */}
-      <div className="bg-primary-purple/30 rounded-lg p-2 h-[60vh] overflow-y-auto">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+      <div className="bg-primary-purple/30 rounded-lg p-2 h-[65vh] overflow-y-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {participants.map((participant) => (
             <div 
               key={participant.id}
-              className="bg-secondary-purple/50 p-3 rounded-md flex flex-col items-center text-center hover:bg-secondary-purple/70 transition-colors"
+              className="bg-secondary-purple/50 p-3 rounded-md flex flex-col items-center text-center hover:bg-secondary-purple/70 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg border border-transparent hover:border-accent/30 cursor-pointer group"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue to-pink flex items-center justify-center text-sm font-bold mb-2">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue to-pink flex items-center justify-center text-lg font-bold mb-2 group-hover:scale-110 transition-transform">
                 {participant.name.charAt(0).toUpperCase()}
               </div>
-              <p className="text-sm truncate w-full">{participant.name}</p>
+              <p className="text-sm font-medium group-hover:text-accent transition-colors">{participant.name}</p>
               <p className="text-xs text-accent/80 truncate w-full">#{participant.ticketNumber}</p>
+              
+              {/* Efecto de brillo al hover */}
+              <div className="absolute inset-0 overflow-hidden rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shimmer"></div>
+              </div>
             </div>
           ))}
         </div>
@@ -31,12 +36,17 @@ const ParticipantsList = ({ participants, onStartRoulette, selectedPrize }) => {
           onClick={onStartRoulette}
           disabled={!selectedPrize}
           className={`
-            px-8 py-3 rounded-full font-bold uppercase tracking-wider
+            px-8 py-3 rounded-full font-bold uppercase tracking-wider relative overflow-hidden
             ${selectedPrize ? 
               'bg-gradient-to-r from-accent to-pink text-white shadow-lg hover:-translate-y-1 transition-all duration-300' : 
               'bg-gray-700 text-gray-400 cursor-not-allowed'}
           `}
         >
+          {/* Efecto de brillo en el botón */}
+          {selectedPrize && (
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer"></div>
+          )}
+          
           Comenzar Sorteo
         </button>
       </div>
