@@ -5,7 +5,7 @@ import Confetti from 'react-confetti';
 import { Howl } from 'howler';
 import logoTransparente from '../assets/logo-transparente.png';
 
-const PodiumDisplay = ({ winners, onReset }) => {
+const PodiumDisplay = ({ winners, onReset, maxHeight }) => {
   const [showConfetti, setShowConfetti] = useState(true);
   const containerRef = useRef(null);
   const podiumsRef = useRef([]);
@@ -72,6 +72,7 @@ const PodiumDisplay = ({ winners, onReset }) => {
         if (prize.name.includes("Moto")) return 1;
         if (prize.name.includes("Aspiradora")) return 2;
         if (prize.name.includes("Cafetera")) {
+          // Extract number from the prize name if it has the format "Cafetera E-CHEF (1)"
           const match = prize.name.match(/\((\d+)\)/);
           return match ? 3 + parseInt(match[1]) : 3;
         }
@@ -85,6 +86,7 @@ const PodiumDisplay = ({ winners, onReset }) => {
   const sortedWinners = getSortedWinners();
 
   const calculatePodiumPositions = () => {
+    // Ensure podiums are displayed correctly based on the number of winners
     if (winners.length === 7) {
       return [1, 0, 2, 3, 4, 5, 6];
     }
@@ -104,8 +106,8 @@ const PodiumDisplay = ({ winners, onReset }) => {
   };
 
   const getHeightClass = (index) => {
-    const heights = ["h-72", "h-64", "h-56", "h-48", "h-40", "h-40", "h-40"];
-    return heights[index] || "h-40";
+    const heights = ["h-64", "h-56", "h-48", "h-40", "h-36", "h-32", "h-28"];
+    return heights[index] || "h-24";
   };
 
   const getPrizeEmoji = (prize) => {
@@ -115,8 +117,19 @@ const PodiumDisplay = ({ winners, onReset }) => {
     return "☕";
   };
 
+  // Calculate scale based on number of winners for responsiveness
+  const getContentScale = () => {
+    if (winners.length > 5) return 'scale-75';
+    if (winners.length > 3) return 'scale-90';
+    return '';
+  };
+
   return (
-    <div ref={containerRef} className="w-full h-full flex flex-col items-center justify-center p-4 relative">
+    <div 
+      ref={containerRef} 
+      className="w-full h-full flex flex-col items-center justify-start p-4 relative overflow-auto"
+      style={{ maxHeight }}
+    >
       {showConfetti && (
         <Confetti
           width={windowDimensions.width}
@@ -128,18 +141,18 @@ const PodiumDisplay = ({ winners, onReset }) => {
         />
       )}
 
-      <div className="text-center mb-10 relative z-10">
-        <h1 className="text-4xl md:text-5xl font-bold text-yellow-300 mb-2">
+      <div className="text-center mb-6 relative z-10">
+        <h1 className="text-3xl md:text-4xl font-bold text-yellow-300 mb-2">
           ¡Grandes Ganadores!
         </h1>
-        <p className="text-xl text-white mt-2">Sorteo Día de la Madre completado exitosamente</p>
+        <p className="text-lg text-white mt-2">Sorteo Día de la Madre completado exitosamente</p>
 
         <div className="mt-4 mx-auto bg-red-900/60 rounded-full border-2 border-yellow-300 p-2 shadow-lg flex items-center justify-center">
-          <img src={logoTransparente} alt="Prodispro" className="h-20 object-contain" />
+          <img src={logoTransparente} alt="Prodispro" className="h-16 object-contain" />
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-center items-end gap-5 mb-8 relative z-10">
+      <div className={`flex flex-wrap justify-center items-end gap-4 mb-6 relative z-10 ${getContentScale()}`}>
         {podiumOrder.map((sortPosition, idx) => {
           if (sortPosition >= sortedWinners.length) return null;
           
@@ -157,10 +170,10 @@ const PodiumDisplay = ({ winners, onReset }) => {
                 winners.length <= 3 
                   ? idx === 1 ? 'order-1' : idx === 0 ? 'order-2' : 'order-3' 
                   : `order-${idx+1}`
-              } ${winners.length > 6 ? 'scale-90' : ''}`}
+              }`}
             >
-              <div className="flex flex-col items-center mb-3">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-red-500 to-red-700 flex items-center justify-center text-lg font-bold border-2 border-white shadow-lg">
+              <div className="flex flex-col items-center mb-2">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-red-500 to-red-700 flex items-center justify-center text-lg font-bold border-2 border-white shadow-lg">
                   {winner.participant.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="text-center mt-2">
@@ -174,13 +187,13 @@ const PodiumDisplay = ({ winners, onReset }) => {
                   {winner.prize.name}
                 </div>
                 
-                <div className="mt-2 text-2xl">
+                <div className="mt-2 text-xl">
                   {prizeEmoji}
                 </div>
               </div>
               
-              <div className={`w-24 sm:w-28 ${podiumHeight} rounded-t-lg bg-gradient-to-b ${podiumColor} relative overflow-hidden flex items-center justify-center shadow-lg`}>
-                <span className="text-xl sm:text-2xl font-bold text-white">
+              <div className={`w-20 sm:w-24 ${podiumHeight} rounded-t-lg bg-gradient-to-b ${podiumColor} relative overflow-hidden flex items-center justify-center shadow-lg`}>
+                <span className="text-xl font-bold text-white">
                   {position + 1}
                 </span>
                 
@@ -201,14 +214,14 @@ const PodiumDisplay = ({ winners, onReset }) => {
           {sortedWinners.map((winner, index) => (
             <div
               key={index}
-              className="bg-red-800 rounded-lg p-4 border border-yellow-300/60 shadow-lg w-56"
+              className="bg-red-800 rounded-lg p-3 border border-yellow-300/60 shadow-lg w-48"
             >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-sm font-bold border border-yellow-300/40">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-sm font-bold border border-yellow-300/40">
                   {winner.participant.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-bold text-white truncate">{winner.participant.name}</p>
+                  <p className="font-bold text-white text-sm truncate">{winner.participant.name}</p>
                   <p className="text-xs text-yellow-200/80 truncate">{winner.participant.ciudad}</p>
                 </div>
               </div>
@@ -228,7 +241,7 @@ const PodiumDisplay = ({ winners, onReset }) => {
       
       <button
         onClick={onReset}
-        className="mt-8 px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-full text-red-900 font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
+        className="mt-4 px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-full text-red-900 font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer"></div>
         

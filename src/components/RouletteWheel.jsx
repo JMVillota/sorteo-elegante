@@ -2,56 +2,122 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { Howl } from 'howler';
-import logoTransparente from '../assets/logo-transparente.png';
+import { getPrizes } from '../services/api'; // Asegúrate de importar getPrizes
 
-const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, allPrizesAwarded, selectedPrize }) => {
+const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, selectedPrize, maxHeight }) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState(null);
   const [currentParticipant, setCurrentParticipant] = useState(null);
+  const [awardedPrizes, setAwardedPrizes] = useState([]);
+  const [currentPrize, setCurrentPrize] = useState(null);
+  const [remainingPrizes, setRemainingPrizes] = useState([]);
   
   const reel1Ref = useRef(null);
   const reel2Ref = useRef(null);
   const reel3Ref = useRef(null);
   const leverRef = useRef(null);
   const leverKnobRef = useRef(null);
+  const leverParticlesRef = useRef(null);
   const nameDisplayRef = useRef(null);
   const spinTimerRef = useRef(null);
   const audioRef = useRef(null);
-  
+
+  // Generar símbolos para los rodillos con claves únicas
   const generateSlotSymbols = () => {
     const symbols = {
-      reel1: [], // "FC" part
-      reel2: [], // First half of numbers
-      reel3: []  // Second half of numbers
+      reel1: [],
+      reel2: [],
+      reel3: []
     };
     
     for (let i = 0; i < 15; i++) {
-      symbols.reel1.push("FC");
+      symbols.reel1.push({
+        id: `reel1-${i}-${Date.now() + i}`,
+        value: "FC"
+      });
       
       const randomNum1 = Math.floor(10000 + Math.random() * 90000).toString();
       const randomNum2 = Math.floor(10000 + Math.random() * 90000).toString();
       
-      symbols.reel2.push(randomNum1);
-      symbols.reel3.push(randomNum2);
+      symbols.reel2.push({
+        id: `reel2-${i}-${Date.now() + i}`,
+        value: randomNum1
+      });
+      
+      symbols.reel3.push({
+        id: `reel3-${i}-${Date.now() + i}`,
+        value: randomNum2
+      });
     }
     
     return symbols;
   };
-  
+
+  // Inicializar reelSymbols
   const [reelSymbols, setReelSymbols] = useState(generateSlotSymbols());
-  
+
+  // Carga inicial de premios
+  useEffect(() => {
+    const loadPrizes = async () => {
+      const prizes = await getPrizes();
+      setRemainingPrizes(prizes);
+      setCurrentPrize(prizes[0]); // Empieza con la cafetera
+    };
+    loadPrizes();
+  }, []);
+
+  // Maneja el ganador y valida los premios
+  const handleWinnerSelected = (winner) => {
+    if (!currentPrize) return;
+
+    // Registra el premio asignado
+    const newAwardedPrizes = [...awardedPrizes, {
+      ...winner,
+      prize: currentPrize
+    }];
+
+    setAwardedPrizes(newAwardedPrizes);
+
+    // Actualiza el conteo de premios restantes
+    const updatedPrize = {
+      ...currentPrize,
+      cantidad: currentPrize.cantidad - 1
+    };
+
+    // Actualiza la lista de premios
+    const updatedPrizes = remainingPrizes.map(p => 
+      p.id === currentPrize.id ? updatedPrize : p
+    );
+
+    setRemainingPrizes(updatedPrizes);
+
+    // Si se acabaron las unidades de este premio, pasa al siguiente
+    if (updatedPrize.cantidad <= 0) {
+      const nextPrize = updatedPrizes.find(p => p.cantidad > 0);
+      setCurrentPrize(nextPrize || null);
+    }
+
+    // Llama a la función padre para manejar el ganador
+    onWinnerSelected(winner);
+  };
+
+  // Verifica si todos los premios han sido sorteados
+  const allPrizesAwarded = remainingPrizes.every(p => p.cantidad <= 0);
+
+  // Efecto para reiniciar cuando hay un nuevo ganador
   useEffect(() => {
     if (currentWinner && !isSpinning) {
       setWinner(null);
       setCurrentParticipant(null);
     }
   }, [currentWinner, isSpinning]);
-  
+
+  // Efecto para inicializar sonidos y animaciones
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = {
         slotSpin: new Howl({
-          src: ['/assets/sounds/wheel-spinning.mp3'], 
+          src: ['/assets/sounds/wheel-spinning.mp3'],
           volume: 0.7,
           loop: true,
           preload: true
@@ -72,23 +138,41 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
           preload: true
         })
       };
-      
+
       audioRef.current.slotSpin.load();
       audioRef.current.slotStop.load();
       audioRef.current.winnerSound.load();
       audioRef.current.leverPull.load();
     }
-    
+
+    // Animación de la palanca
+    if (leverKnobRef.current && !isSpinning && !allPrizesAwarded) {
+      gsap.to(leverKnobRef.current, {
+        y: -3,
+        duration: 1,
+        repeat: -1,
+        yoyo: true,
+        ease: "power1.inOut"
+      });
+
+      gsap.to(leverParticlesRef.current, {
+        opacity: 0.4,
+        duration: 1.2,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+    }
+
     const applyInitialEffects = () => {
       [reel1Ref, reel2Ref, reel3Ref].forEach(reelRef => {
         if (reelRef.current) {
           const items = reelRef.current.querySelectorAll('.reel-item');
-          
           items.forEach((item, i) => {
             const distanceFromCenter = Math.abs(i - 2);
             const scale = 1 - (distanceFromCenter * 0.05);
             const opacity = 1 - (distanceFromCenter * 0.2);
-            
+
             gsap.set(item, {
               scale,
               opacity,
@@ -98,43 +182,45 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
         }
       });
     };
-    
+
     applyInitialEffects();
-    
+
     return () => {
       if (audioRef.current) {
         Object.values(audioRef.current).forEach(sound => {
           if (sound.playing()) sound.stop();
         });
       }
-      
+
       if (spinTimerRef.current) {
         clearTimeout(spinTimerRef.current);
       }
+
+      gsap.killTweensOf([leverKnobRef.current, leverParticlesRef.current]);
     };
-  }, []);
-  
-  // Animar la palanca (arriba-abajo)
+  }, [isSpinning, allPrizesAwarded]);
+
+  // Animar la palanca
   const animateLever = () => {
     if (audioRef.current) {
       audioRef.current.leverPull.play();
     }
-    
-    // Animación de la palanca hacia abajo
+
+    gsap.killTweensOf(leverKnobRef.current);
+
     gsap.timeline()
       .to(leverRef.current, {
-        y: 30, // Movimiento vertical hacia abajo
+        y: 30,
         duration: 0.4,
         ease: 'power1.out'
       })
       .to(leverRef.current, {
-        y: 0, // Regresa a la posición original
+        y: 0,
         duration: 0.5,
         ease: 'elastic.out(1, 0.3)',
         delay: 0.2
       });
-      
-    // Animar el botón (knob) de la palanca
+
     gsap.timeline()
       .to(leverKnobRef.current, {
         scale: 0.8,
@@ -147,65 +233,112 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
         ease: 'elastic.out(1, 0.3)',
         delay: 0.2
       });
+
+    if (leverParticlesRef.current) {
+      const particles = leverParticlesRef.current.querySelectorAll('div');
+      particles.forEach((particle, i) => {
+        const angle = (i / particles.length) * 2 * Math.PI;
+        const distance = 40 + Math.random() * 20;
+
+        gsap.timeline()
+          .to(particle, {
+            x: Math.cos(angle) * distance,
+            y: Math.sin(angle) * distance,
+            opacity: 0,
+            duration: 0.8,
+            ease: 'power2.out'
+          })
+          .set(particle, {
+            x: 0,
+            y: 0,
+            opacity: 1
+          });
+      });
+    }
   };
-  
+
+  // Generar partículas alrededor del botón
+  const generateParticles = () => {
+    return [...Array(10)].map((_, i) => {
+      const angle = (i / 10) * 2 * Math.PI;
+      const radius = 22;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+
+      return (
+        <div
+          key={`particle-${i}-${Date.now()}`}
+          className="absolute w-2 h-2 rounded-full bg-yellow-300/70 shadow-glow"
+          style={{
+            left: `calc(50% + ${x}px)`,
+            top: `calc(50% + ${y}px)`,
+            animation: `pulse 1.5s infinite ${i * 0.2}s`,
+            boxShadow: '0 0 5px 2px rgba(255, 215, 0, 0.3)'
+          }}
+        />
+      );
+    });
+  };
+
+  // Lógica de giro de la ruleta
   const spinReels = () => {
-    if (isSpinning || participants.length === 0 || allPrizesAwarded) return;
-    
+    if (isSpinning || participants.length === 0 || allPrizesAwarded || !currentPrize) return;
+
     setIsSpinning(true);
     setWinner(null);
-    
+
     animateLever();
-    
+
     const randomIndex = Math.floor(Math.random() * participants.length);
     const selectedWinner = participants[randomIndex];
-    
+
     if (audioRef.current) {
       audioRef.current.slotSpin.play();
     }
-    
+
     setReelSymbols(generateSlotSymbols());
-    
+
     let nameIndex = 0;
     const nameInterval = setInterval(() => {
       const randomPartIndex = Math.floor(Math.random() * participants.length);
       setCurrentParticipant(participants[randomPartIndex]);
-      
+
       if (nameDisplayRef.current) {
         gsap.fromTo(nameDisplayRef.current, 
           { opacity: 0.7, scale: 0.97 },
           { opacity: 1, scale: 1, duration: 0.1 }
         );
       }
-      
+
       nameIndex++;
     }, 100);
-    
+
     const winPosition = 2;
-    
+
+    // Usar el número de factura real para el resultado final
     const invoiceNumber = selectedWinner.invoiceNumber;
     const fcPart = invoiceNumber.substring(0, 2);
     const part2 = invoiceNumber.substring(2, 6);
     const part3 = invoiceNumber.substring(6);
-    
+
     const newSymbols = {
       reel1: [...reelSymbols.reel1],
       reel2: [...reelSymbols.reel2],
       reel3: [...reelSymbols.reel3]
     };
-    
-    newSymbols.reel1[winPosition] = fcPart;
-    newSymbols.reel2[winPosition] = part2;
-    newSymbols.reel3[winPosition] = part3;
-    
+
+    newSymbols.reel1[winPosition] = { id: `reel1-win-${Date.now()}`, value: fcPart };
+    newSymbols.reel2[winPosition] = { id: `reel2-win-${Date.now()}`, value: part2 };
+    newSymbols.reel3[winPosition] = { id: `reel3-win-${Date.now()}`, value: part3 };
+
     setReelSymbols(newSymbols);
-    
+
     const spinReel = (reelRef, delay, duration) => {
       if (!reelRef.current) return;
-      
+
       const numSpins = 30 + Math.floor(Math.random() * 10);
       const itemHeight = reelRef.current.querySelector('.reel-item')?.offsetHeight || 80;
-      
+
       return gsap.to(reelRef.current, {
         y: -(numSpins * 5 * itemHeight),
         duration,
@@ -213,20 +346,20 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
         ease: "power2.inOut",
         onComplete: () => {
           gsap.set(reelRef.current, { y: 0 });
-          
+
           const items = reelRef.current.querySelectorAll('.reel-item');
           items.forEach((item, i) => {
             const distanceFromCenter = Math.abs(i - winPosition);
             const scale = 1 - (distanceFromCenter * 0.05);
             const opacity = 1 - (distanceFromCenter * 0.2);
-            
+
             gsap.to(item, {
               scale,
               opacity,
               rotateX: -distanceFromCenter * 10,
               duration: 0.3
             });
-            
+
             if (i === winPosition) {
               gsap.to(item, {
                 backgroundColor: 'rgba(255, 215, 0, 0.3)',
@@ -238,25 +371,25 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
         }
       });
     };
-    
+
     const tl = gsap.timeline();
-    
+
     tl.add(spinReel(reel1Ref, 0, 2), 0);
     tl.add(spinReel(reel2Ref, 0.3, 2.3), 0);
     tl.add(spinReel(reel3Ref, 0.6, 2.6), 0);
-    
+
     tl.call(() => {
       clearInterval(nameInterval);
       setCurrentParticipant(selectedWinner);
-      
+
       if (audioRef.current) {
         audioRef.current.slotSpin.stop();
         audioRef.current.slotStop.play();
       }
-      
+
       setTimeout(() => {
         setWinner(selectedWinner);
-        
+
         gsap.fromTo(".win-line", 
           { opacity: 0, scaleY: 0 },
           { 
@@ -267,7 +400,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
             yoyo: true
           }
         );
-        
+
         gsap.fromTo(nameDisplayRef.current, 
           { scale: 1 },
           { 
@@ -280,48 +413,51 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
             duration: 0.3
           }
         );
-        
+
         if (audioRef.current) {
           audioRef.current.winnerSound.play();
         }
-        
+
         spinTimerRef.current = setTimeout(() => {
           setIsSpinning(false);
-          onWinnerSelected(selectedWinner);
+          handleWinnerSelected(selectedWinner); // Llama a la función corregida
         }, 2000);
       }, 500);
     });
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center px-4 py-6 relative">
+    <div className="w-full flex flex-col items-center justify-center px-4 py-2 relative" style={{ maxHeight }}>
       {/* Panel informativo del premio actual */}
-      <div className="mb-6 bg-red-700 p-4 rounded-xl border border-yellow-300 flex items-center gap-4 w-full max-w-2xl">
-        <div className="text-4xl">
-          {selectedPrize?.name?.includes("Refrigeradora") ? "🧊" : 
-           selectedPrize?.name?.includes("Moto") ? "🛵" : 
-           selectedPrize?.name?.includes("Aspiradora") ? "🧹" : "☕"}
+      <div className="mb-4 bg-red-700 p-3 rounded-xl border border-yellow-300 flex items-center gap-4 w-full max-w-2xl">
+        <div className="text-3xl md:text-4xl">
+          {currentPrize?.name?.includes("Refrigeradora") ? "🧊" : 
+           currentPrize?.name?.includes("Moto") ? "🛵" : 
+           currentPrize?.name?.includes("Aspiradora") ? "🧹" : "☕"}
         </div>
         <div>
-          <h3 className="text-lg font-bold text-yellow-200">Premio actual</h3>
-          <p className="text-white text-xl">{selectedPrize?.name || "Selecciona un premio"}</p>
+          <h3 className="text-base md:text-lg font-bold text-yellow-200">Premio actual</h3>
+          <p className="text-white text-lg md:text-xl">{currentPrize?.name || "Selecciona un premio"}</p>
+          {currentPrize?.cantidad && currentPrize.cantidad > 1 && (
+            <p className="text-xs text-yellow-200/80">Cantidad: {currentPrize.cantidad}</p>
+          )}
         </div>
       </div>
-      
+
       {/* Mostrar participante actual arriba */}
-      <div className="text-center mb-6 h-28 flex flex-col items-center justify-center w-full max-w-2xl">
+      <div className="text-center mb-4 h-24 flex flex-col items-center justify-center w-full max-w-2xl">
         <div 
           ref={nameDisplayRef}
-          className={`relative bg-red-900 px-8 py-4 rounded-xl border-2 ${winner ? 'border-yellow-300' : 'border-pink-300/40'} transition-all duration-200 backdrop-blur-sm w-full`}
+          className={`relative bg-red-900 px-4 py-3 rounded-xl border-2 ${winner ? 'border-yellow-300' : 'border-pink-300/40'} transition-all duration-200 backdrop-blur-sm w-full`}
         >
           <div className="text-sm text-yellow-200 mb-1 uppercase tracking-wider">
             PARTICIPANTE
           </div>
-          <div className="text-xl font-bold text-white">
+          <div className="text-lg md:text-xl font-bold text-white">
             {currentParticipant ? currentParticipant.name : 'Presiona el botón para girar'}
           </div>
           {currentParticipant && (
-            <div className="flex justify-between mt-1 text-sm">
+            <div className="flex flex-wrap justify-between mt-1 text-xs">
               <span className="text-yellow-200">
                 Factura: {currentParticipant.invoiceNumber || 'N/A'}
               </span>
@@ -336,19 +472,19 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
           )}
         </div>
       </div>
-      
+
       {/* Máquina tragamonedas con 3 rodillos horizontales */}
-      <div className="relative w-full max-w-2xl h-[400px] border-8 border-yellow-700 rounded-xl bg-gradient-to-b from-red-700 to-red-900 mb-8 overflow-visible shadow-[0_0_30px_rgba(255,215,0,0.4)]">
+      <div className="relative w-full max-w-2xl border-8 border-yellow-700 rounded-xl bg-gradient-to-b from-red-700 to-red-900 mb-4 overflow-visible shadow-[0_0_30px_rgba(255,215,0,0.4)]" style={{ height: maxHeight * 0.7 }}>
         {/* Parte superior de la máquina */}
-        <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-yellow-600 to-yellow-700 flex items-center justify-center">
-          <div className="text-2xl font-bold text-white text-center tracking-wider drop-shadow-lg">
+        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-yellow-600 to-yellow-700 flex items-center justify-center">
+          <div className="text-xl md:text-2xl font-bold text-white text-center tracking-wider drop-shadow-lg">
             SORTEO DÍA DE LA MADRE
           </div>
           <div className="absolute top-0 left-0 right-0 flex justify-between px-3">
             {[0, 1, 2, 3, 4, 5, 6].map(i => (
               <div 
                 key={`top-light-${i}`}
-                className="w-4 h-4 rounded-full bg-yellow-300"
+                className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-yellow-300"
                 style={{ 
                   animation: `blink 1s infinite ${i * 0.2}s`,
                   boxShadow: '0 0 10px rgba(255, 215, 0, 0.6)'
@@ -359,7 +495,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
         </div>
         
         {/* Contenedor principal de los 3 rodillos */}
-        <div className="absolute top-24 inset-x-4 bottom-20 bg-black rounded-lg border-4 border-yellow-600 overflow-hidden flex shadow-inner">
+        <div className="absolute top-20 inset-x-4 bottom-16 bg-black rounded-lg border-4 border-yellow-600 overflow-hidden flex shadow-inner">
           {/* Línea de gane (horizontal en el centro) */}
           <div className="win-line absolute left-0 right-0 h-[80px] top-1/2 -translate-y-1/2 border-y-2 border-yellow-500 bg-yellow-500/10 z-10 pointer-events-none opacity-0"></div>
           
@@ -369,13 +505,13 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
               ref={reel1Ref}
               className="absolute inset-x-0 w-full transition-transform will-change-transform"
             >
-              {reelSymbols.reel1.map((symbol, idx) => (
+              {reelSymbols.reel1.map((symbol) => (
                 <div 
-                  key={`reel1-${idx}`}
+                  key={symbol.id}
                   className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-red-600 to-red-800 border-b border-yellow-900/50"
                 >
                   <div className="text-3xl font-bold text-white">
-                    {symbol}
+                    {symbol.value}
                   </div>
                 </div>
               ))}
@@ -388,13 +524,13 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
               ref={reel2Ref}
               className="absolute inset-x-0 w-full transition-transform will-change-transform"
             >
-              {reelSymbols.reel2.map((symbol, idx) => (
+              {reelSymbols.reel2.map((symbol) => (
                 <div 
-                  key={`reel2-${idx}`}
+                  key={symbol.id}
                   className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-red-500 to-red-700 border-b border-yellow-900/50"
                 >
                   <div className="text-3xl font-bold text-white">
-                    {symbol}
+                    {symbol.value}
                   </div>
                 </div>
               ))}
@@ -407,13 +543,13 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
               ref={reel3Ref}
               className="absolute inset-x-0 w-full transition-transform will-change-transform"
             >
-              {reelSymbols.reel3.map((symbol, idx) => (
+              {reelSymbols.reel3.map((symbol) => (
                 <div 
-                  key={`reel3-${idx}`}
+                  key={symbol.id}
                   className="reel-item h-[80px] w-full flex flex-col items-center justify-center bg-gradient-to-b from-red-400 to-red-600 border-b border-yellow-900/50"
                 >
                   <div className="text-2xl font-bold text-white leading-tight text-center">
-                    {symbol}
+                    {symbol.value}
                   </div>
                 </div>
               ))}
@@ -422,13 +558,12 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
         </div>
         
         {/* Parte inferior de la máquina */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-yellow-700 to-yellow-600 flex items-center justify-center">
-          {/* Luces decorativas */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-b from-yellow-700 to-yellow-600 flex items-center justify-center">
           <div className="absolute inset-x-0 bottom-0 flex justify-between px-3">
             {[0, 1, 2, 3, 4, 5, 6].map(i => (
               <div 
                 key={`bottom-light-${i}`}
-                className="w-4 h-4 rounded-full bg-yellow-300"
+                className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-yellow-300"
                 style={{ 
                   animation: `blink 1s infinite ${i * 0.15}s`,
                   boxShadow: '0 0 10px rgba(255, 215, 0, 0.6)'
@@ -436,7 +571,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
               ></div>
             ))}
           </div>
-          <div className="text-lg font-bold text-white text-center mx-8">
+          <div className="text-sm md:text-lg font-bold text-white text-center mx-8">
             PRODISPRO 2025
           </div>
         </div>
@@ -448,7 +583,6 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
             className="flex flex-col items-center transition-transform"
           >
             <div className="w-8 h-40 bg-gradient-to-b from-gray-400 to-gray-600 rounded-full relative">
-              {/* Botón en la palanca */}
               <button
                 ref={leverKnobRef}
                 onClick={spinReels}
@@ -457,7 +591,14 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
                   ${!isSpinning && !allPrizesAwarded ? 
                     'bg-gradient-to-b from-red-500 to-red-700 hover:scale-110 active:scale-95' : 
                     'bg-gradient-to-b from-gray-400 to-gray-600 cursor-not-allowed opacity-70'}`}
-              ></button>
+              >
+                <div 
+                  ref={leverParticlesRef}
+                  className="absolute inset-0 pointer-events-none"
+                >
+                  {!isSpinning && !allPrizesAwarded && generateParticles()}
+                </div>
+              </button>
             </div>
             <div className="w-10 h-10 rounded-full bg-gradient-to-b from-gray-300 to-gray-500 shadow-lg"></div>
           </div>
@@ -484,7 +625,7 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
       </div>
       
       {/* Instrucciones */}
-      <div className="text-center text-sm text-white mt-2 mb-4">
+      <div className="text-center text-sm text-white mt-2">
         {!allPrizesAwarded ? (
           <p>Presiona el botón rojo de la palanca para girar la ruleta</p>
         ) : (
@@ -501,6 +642,10 @@ const SlotMachineRoulette = ({ participants, onWinnerSelected, currentWinner, al
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        
+        .shadow-glow {
+          filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.7));
         }
       `}</style>
     </div>
