@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { Howl } from 'howler';
+import Confetti from 'react-confetti';
+import useWindowSize from '../hooks/useWindowSize';
 
 const RouletteWheel = ({
   participants,
@@ -15,6 +17,11 @@ const RouletteWheel = ({
   const [isSpinning, setIsSpinning] = useState(false);
   const [displayParticipant, setDisplayParticipant] = useState(null);
   const [winner, setWinner] = useState(null);
+  const [audioInitialized, setAudioInitialized] = useState(false);
+  const [resultShown, setResultShown] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  const { width, height } = useWindowSize();
 
   const reel1Ref = useRef(null);
   const reel2Ref = useRef(null);
@@ -25,6 +32,112 @@ const RouletteWheel = ({
   const nameDisplayRef = useRef(null);
   const spinTimerRef = useRef(null);
   const audioRef = useRef(null);
+  const winnerSoundTimeoutRef = useRef(null);
+  const confettiTimeoutRef = useRef(null);
+
+  // DURACIÓN: 12.5 segundos para la ruleta, 5 segundos para el sonido de ganador
+  const SPIN_DURATION = 9.5;
+  const WINNER_SOUND_DURATION = 5;
+
+  // Función para inicializar audio
+  const initializeAudio = () => {
+    if (!audioRef.current && !audioInitialized) {
+      console.log('Inicializando audio...');
+
+      audioRef.current = {
+        slotSpin: new Howl({
+          src: ['/assets/sounds/wheel-spinning.mp3'],
+          volume: 0.3,
+          loop: false,
+          preload: true,
+          html5: false,
+          onload: () => console.log('Sonido de ruleta cargado correctamente'),
+          onloaderror: (id, error) => console.error('Error cargando sonido de ruleta:', error),
+          onplay: () => console.log('🎰 Sonido de ruleta INICIADO (12.5 segundos)'),
+          onend: () => console.log('🎵 Sonido de ruleta TERMINADO naturalmente'),
+          onstop: () => console.log('🛑 Sonido de ruleta DETENIDO manualmente')
+        }),
+        winner: new Howl({
+          src: ['/assets/sounds/winner.mp3'],
+          volume: 0.6,
+          preload: true,
+          html5: false,
+          loop: false,
+          onload: () => console.log('Sonido de ganador cargado correctamente'),
+          onloaderror: (id, error) => console.error('Error cargando sonido de ganador:', error),
+          onplay: () => console.log('🎉 Sonido de ganador INICIADO (5 segundos)'),
+          onend: () => console.log('✅ Sonido de ganador TERMINADO naturalmente'),
+          onstop: () => console.log('🛑 Sonido de ganador DETENIDO manualmente')
+        })
+      };
+
+      setAudioInitialized(true);
+    }
+  };
+
+  // Función para reproducir sonido de forma segura
+  const playSound = (soundKey) => {
+    if (audioRef.current && audioRef.current[soundKey]) {
+      try {
+        const sound = audioRef.current[soundKey];
+
+        if (soundKey === 'slotSpin') {
+          if (sound.playing()) sound.stop();
+          sound.seek(0);
+          sound.play();
+          console.log('▶️ REPRODUCIENDO sonido de ruleta (12.5s completos)');
+        } else if (soundKey === 'winner') {
+          if (sound.playing()) sound.stop();
+          sound.seek(0);
+          sound.play();
+          console.log('🎊 REPRODUCIENDO sonido de ganador (5 segundos)');
+
+          // Detener sonido de ganador después de 5 segundos
+          setTimeout(() => {
+            if (sound.playing()) {
+              sound.stop();
+              console.log('⏹️ Sonido de ganador detenido después de 5 segundos');
+            }
+          }, WINNER_SOUND_DURATION * 1000);
+        }
+      } catch (error) {
+        console.error(`Error reproduciendo sonido ${soundKey}:`, error);
+      }
+    }
+  };
+
+  // Función para detener sonido
+  const stopSound = (soundKey) => {
+    if (audioRef.current && audioRef.current[soundKey]) {
+      try {
+        const sound = audioRef.current[soundKey];
+        if (sound.playing()) {
+          sound.stop();
+          console.log(`⏹️ Sonido ${soundKey} detenido`);
+        }
+      } catch (error) {
+        console.error(`Error deteniendo sonido ${soundKey}:`, error);
+      }
+    }
+  };
+
+  // Resetear estados cuando cambia la ronda
+  useEffect(() => {
+    setWinner(null);
+    setResultShown(false);
+    setDisplayParticipant(null);
+    setShowConfetti(false);
+
+    // Limpiar timeouts pendientes
+    if (winnerSoundTimeoutRef.current) {
+      clearTimeout(winnerSoundTimeoutRef.current);
+      winnerSoundTimeoutRef.current = null;
+    }
+    if (confettiTimeoutRef.current) {
+      clearTimeout(confettiTimeoutRef.current);
+      confettiTimeoutRef.current = null;
+    }
+  }, [isWinnerRound]);
 
   // Generar facturas aleatorias para el efecto visual
   const generateRandomInvoices = () => {
@@ -67,57 +180,44 @@ const RouletteWheel = ({
 
       symbols.reel1.push({
         id: `reel1-${i}-${Date.now() + i}`,
-        value: invoice.substring(0, 2) // FC
+        value: invoice.substring(0, 2)
       });
 
       symbols.reel2.push({
         id: `reel2-${i}-${Date.now() + i}`,
-        value: invoice.substring(2, 6) // 4 dígitos
+        value: invoice.substring(2, 6)
       });
 
       symbols.reel3.push({
         id: `reel3-${i}-${Date.now() + i}`,
-        value: invoice.substring(6) // resto
+        value: invoice.substring(6)
       });
     }
 
     return symbols;
   };
 
-  // Inicializar reelSymbols
   const [reelSymbols, setReelSymbols] = useState(generateSlotSymbols());
 
-  // Efecto para inicializar sonidos y animaciones
+  // Efecto para inicializar audio en el primer clic del usuario
   useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = {
-        slotSpin: new Howl({
-          src: ['/assets/sounds/wheel-spinning.mp3'],
-          volume: 0.3,
-          loop: true,
-          preload: true,
-          html5: true,
-          onloaderror: (id, error) => {
-            console.warn('Error loading spin sound:', error);
-          }
-        }),
-        winner: new Howl({
-          src: ['/assets/sounds/winner.mp3'],
-          volume: 0.5,
-          preload: true,
-          html5: true,
-          onloaderror: (id, error) => {
-            console.warn('Error loading winner sound:', error);
-          }
-        })
-      };
+    const handleFirstInteraction = () => {
+      initializeAudio();
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
 
-      // Precargar sonidos
-      audioRef.current.slotSpin.load();
-      audioRef.current.winner.load();
-    }
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('touchstart', handleFirstInteraction);
 
-    // Animación de la palanca cuando no está girando
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, []);
+
+  // Efecto para animaciones iniciales
+  useEffect(() => {
     if (leverKnobRef.current && !isSpinning && !isActive) {
       gsap.to(leverKnobRef.current, {
         y: -3,
@@ -138,7 +238,6 @@ const RouletteWheel = ({
       }
     }
 
-    // Aplicar efectos iniciales a los rodillos
     const applyInitialEffects = () => {
       [reel1Ref, reel2Ref, reel3Ref].forEach(reelRef => {
         if (reelRef.current) {
@@ -163,32 +262,32 @@ const RouletteWheel = ({
     applyInitialEffects();
 
     return () => {
-      if (audioRef.current) {
-        Object.values(audioRef.current).forEach(sound => {
-          if (sound.playing()) sound.stop();
-        });
-      }
-
       if (spinTimerRef.current) {
         clearTimeout(spinTimerRef.current);
       }
-
+      if (winnerSoundTimeoutRef.current) {
+        clearTimeout(winnerSoundTimeoutRef.current);
+      }
+      if (confettiTimeoutRef.current) {
+        clearTimeout(confettiTimeoutRef.current);
+      }
       gsap.killTweensOf([leverKnobRef.current, leverParticlesRef.current]);
     };
   }, [isSpinning, isActive]);
 
-  // Reproducir sonido de ganador cuando hay un ganador
+  // Cleanup al desmontar
   useEffect(() => {
-    if (winner && isWinnerRound && audioRef.current?.winner) {
-      // Detener sonido de giro si está reproduciéndose
-      if (audioRef.current.slotSpin.playing()) {
-        audioRef.current.slotSpin.stop();
+    return () => {
+      if (audioRef.current) {
+        Object.values(audioRef.current).forEach(sound => {
+          if (sound.playing()) {
+            sound.stop();
+          }
+          sound.unload();
+        });
       }
-      
-      // Reproducir sonido de ganador
-      audioRef.current.winner.play();
-    }
-  }, [winner, isWinnerRound]);
+    };
+  }, []);
 
   // Animar la palanca
   const animateLever = () => {
@@ -243,7 +342,6 @@ const RouletteWheel = ({
     }
   };
 
-  // Generar partículas alrededor del botón
   const generateParticles = () => {
     return [...Array(10)].map((_, i) => {
       const angle = (i / 10) * 2 * Math.PI;
@@ -266,35 +364,44 @@ const RouletteWheel = ({
     });
   };
 
-  // Lógica de giro de la máquina tragamonedas
+  // Lógica de giro CON DURACIÓN DE 12.5 SEGUNDOS
   const spinReels = () => {
     if (isSpinning || participants.length === 0) return;
 
-    // Animar palanca PRIMERO
+    console.log('🎯 INICIANDO NUEVO GIRO (12.5 segundos)');
+    console.log('🎯 Es ronda ganadora:', isWinnerRound);
+
+    // Inicializar audio si no está inicializado
+    if (!audioInitialized) {
+      initializeAudio();
+    }
+
+    // Resetear estados
+    setWinner(null);
+    setResultShown(false);
+    setShowConfetti(false);
+
+    // Animar palanca
     animateLever();
 
     setTimeout(() => {
       setIsSpinning(true);
-      setWinner(null);
       onStart();
 
-      // Seleccionar ganador REAL aleatorio de todos los participantes
+      // Seleccionar ganador REAL aleatorio
       const randomIndex = Math.floor(Math.random() * participants.length);
       const selectedWinner = participants[randomIndex];
 
-      // Iniciar sonido de giro cuando comienza a girar
-      if (audioRef.current?.slotSpin) {
-        // Asegurar que el sonido se reproduzca desde el inicio
-        audioRef.current.slotSpin.seek(0);
-        audioRef.current.slotSpin.play();
-      }
+      console.log('🎰 EMPEZANDO SONIDO DE RULETA (12.5 segundos completos)');
 
-      // Generar nuevos símbolos visuales aleatorios para el efecto
+      // Reproducir sonido de giro completo
+      playSound('slotSpin');
+
+      // Generar nuevos símbolos visuales aleatorios
       setReelSymbols(generateSlotSymbols());
 
       // Mostrar nombres aleatorios mientras gira
       const randomNames = generateRandomNames();
-      let nameIndex = 0;
       const nameInterval = setInterval(() => {
         const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
         setDisplayParticipant({ name: randomName });
@@ -305,19 +412,16 @@ const RouletteWheel = ({
             { opacity: 1, scale: 1, duration: 0.1 }
           );
         }
+      }, 150);
 
-        nameIndex++;
-      }, 100);
+      const winPosition = 2; // POSICIÓN CENTRAL CORRECTA
 
-      const winPosition = 2; // Posición central (índice 2)
-
-      // Usar el número de factura real para el resultado final
+      // Configurar resultado final
       const invoiceNumber = selectedWinner.invoiceNumber;
       const fcPart = invoiceNumber.substring(0, 2);
       const part2 = invoiceNumber.substring(2, 6);
       const part3 = invoiceNumber.substring(6);
 
-      // Actualizar los símbolos con el resultado del ganador
       const newSymbols = {
         reel1: [...reelSymbols.reel1],
         reel2: [...reelSymbols.reel2],
@@ -334,7 +438,7 @@ const RouletteWheel = ({
       const spinReel = (reelRef, delay, duration) => {
         if (!reelRef.current) return;
 
-        const numSpins = 30 + Math.floor(Math.random() * 10);
+        const numSpins = 80 + Math.floor(Math.random() * 20);
         const itemHeight = reelRef.current.querySelector('.reel-item')?.offsetHeight || 80;
 
         return gsap.to(reelRef.current, {
@@ -343,7 +447,8 @@ const RouletteWheel = ({
           delay,
           ease: "power2.inOut",
           onComplete: () => {
-            const centerOffset = -((winPosition - 1.5) * itemHeight);
+            // CORRECCIÓN: Alineación correcta al centro
+            const centerOffset = -(winPosition * itemHeight);
             gsap.set(reelRef.current, { y: centerOffset });
 
             const items = reelRef.current.querySelectorAll('.reel-item');
@@ -373,25 +478,33 @@ const RouletteWheel = ({
 
       const tl = gsap.timeline();
 
-      // Girar los rodillos con la duración correcta de 4 segundos total
-      tl.add(spinReel(reel1Ref, 0, 3), 0);
-      tl.add(spinReel(reel2Ref, 0.3, 3.5), 0);
-      tl.add(spinReel(reel3Ref, 0.6, 4), 0);
+      // Girar los rodillos con nueva duración (12.5 segundos total)
+      tl.add(spinReel(reel1Ref, 0, 6.5), 0);         // Primer rodillo para a los 8.5s
+      tl.add(spinReel(reel2Ref, 0.5, 7.5), 0);       // Segundo rodillo para a los 9.5s
+      tl.add(spinReel(reel3Ref, 1, 8.5), 0);        // Tercer rodillo para a los 10.5s
 
+      // DESPUÉS de que terminen los rodillos (12.5 segundos)
       tl.call(() => {
-        // Detener el ciclo de nombres y mostrar el ganador real
+        console.log('🛑 SONIDO DE RULETA TERMINADO (12.5s completos)');
+
+        // 1. Detener nombres aleatorios y mostrar ganador real
         clearInterval(nameInterval);
         setDisplayParticipant(selectedWinner);
 
-        // Detener sonido de giro
-        if (audioRef.current?.slotSpin && audioRef.current.slotSpin.playing()) {
-          audioRef.current.slotSpin.stop();
-        }
-
+        // 2. Detener sonido de ruleta
         setTimeout(() => {
-          setWinner(selectedWinner);
+          if (audioRef.current?.slotSpin && audioRef.current.slotSpin.playing()) {
+            stopSound('slotSpin');
+          }
+        }, 100);
 
-          // Animación de la línea ganadora
+        // 3. Pequeña pausa antes de mostrar resultado
+        setTimeout(() => {
+          console.log('📋 MOSTRANDO RESULTADO');
+          setWinner(selectedWinner);
+          setResultShown(true);
+
+          // 4. Animaciones del resultado
           gsap.fromTo(".win-line",
             { opacity: 0, scaleY: 0 },
             {
@@ -403,7 +516,6 @@ const RouletteWheel = ({
             }
           );
 
-          // Animación del display del participante
           gsap.fromTo(nameDisplayRef.current,
             { scale: 1 },
             {
@@ -417,30 +529,62 @@ const RouletteWheel = ({
             }
           );
 
+          // 5. SI ES GANADOR: CONFETI Y SONIDO AL MISMO TIEMPO
+          if (isWinnerRound && audioInitialized) {
+            console.log('🎊 ES GANADOR! Activando confeti y sonido simultáneamente...');
+
+            winnerSoundTimeoutRef.current = setTimeout(() => {
+              // CONFETI Y SONIDO AL MISMO TIEMPO
+              setShowConfetti(true);
+              playSound('winner');
+
+              // Detener confeti después de 5 segundos
+              confettiTimeoutRef.current = setTimeout(() => {
+                setShowConfetti(false);
+                console.log('🎊 Confeti detenido después de 5 segundos');
+              }, WINNER_SOUND_DURATION * 1000);
+            }, 800);
+          } else {
+            console.log('❌ Es perdedor, NO se reproduce sonido ni confeti');
+          }
+
+          // 6. Finalizar después de 2 segundos más
           spinTimerRef.current = setTimeout(() => {
             setIsSpinning(false);
             onWinnerSelected(selectedWinner);
           }, 2000);
         }, 500);
-      });
+      }, null, 10);
+
     }, 200);
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center">
-      {/* Mostrar participante actual arriba */}
+    <div className="w-full flex flex-col items-center justify-center relative">
+      {/* CONFETI - Solo cuando es ganador */}
+      {showConfetti && isWinnerRound && (
+        <Confetti
+          width={width}
+          height={height}
+          numberOfPieces={200}
+          recycle={true}
+          colors={['#019BDC', '#22C55E', '#EAB308', '#EF4444', '#8B5CF6', '#F97316']}
+        />
+      )}
+
+      {/* Mostrar participante actual */}
       <div className="text-center mb-6 w-full">
         <div
           ref={nameDisplayRef}
-          className={`relative bg-prodispro-light-gray px-4 py-3 rounded-xl border-2 transition-all duration-200 backdrop-blur-sm w-full ${showResult
-            ? isWinnerRound
-              ? 'border-green-500 bg-green-500/10'
-              : 'border-yellow-500 bg-yellow-500/10'
-            : 'border-prodispro-blue bg-prodispro-blue/10'
+          className={`relative bg-prodispro-light-gray px-4 py-3 rounded-xl border-2 transition-all duration-200 backdrop-blur-sm w-full ${resultShown
+              ? isWinnerRound
+                ? 'border-green-500 bg-green-500/10'
+                : 'border-yellow-500 bg-yellow-500/10'
+              : 'border-prodispro-blue bg-prodispro-blue/10'
             }`}
         >
           <div className="text-sm text-gray-400 mb-1 uppercase tracking-wider">
-            {showResult
+            {resultShown
               ? isWinnerRound ? '🏆 GANADOR' : '❌ PERDEDOR'
               : isSpinning ? 'SELECCIONANDO...' : 'PARTICIPANTE'
             }
@@ -456,10 +600,15 @@ const RouletteWheel = ({
               <span className="text-gray-400">
                 Ciudad: {displayParticipant.ciudad || 'N/A'}
               </span>
+              {displayParticipant.vendedor && (
+                <span className="text-gray-400">
+                  Vendedor: {displayParticipant.vendedor}
+                </span>
+              )}
             </div>
           )}
 
-          {winner && (
+          {winner && resultShown && (
             <div className={`absolute -inset-1 rounded-xl -z-10 animate-pulse ${isWinnerRound
               ? 'bg-gradient-to-r from-green-300/0 via-green-300/30 to-green-300/0'
               : 'bg-gradient-to-r from-yellow-300/0 via-yellow-300/30 to-yellow-300/0'
@@ -468,7 +617,7 @@ const RouletteWheel = ({
         </div>
       </div>
 
-      {/* Máquina tragamonedas con 3 rodillos horizontales */}
+      {/* Máquina tragamonedas */}
       <div className="relative w-full border-8 border-prodispro-blue rounded-xl bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray mb-6 overflow-visible shadow-[0_0_30px_rgba(1,155,220,0.4)]" style={{ height: '400px' }}>
         {/* Parte superior de la máquina */}
         <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-prodispro-blue to-prodispro-blue/80 flex items-center justify-center">
@@ -489,17 +638,24 @@ const RouletteWheel = ({
           </div>
         </div>
 
-        {/* Contenedor principal de los 3 rodillos */}
+        {/* Contenedor principal de los 3 rodillos - CENTRADO CORRECTAMENTE */}
         <div className="absolute top-20 inset-x-4 bottom-16 bg-black rounded-lg border-4 border-prodispro-blue overflow-hidden flex shadow-inner">
-          {/* Línea de gane (horizontal en el centro) */}
-          <div className={`win-line absolute left-0 right-0 h-[80px] top-1/2 -translate-y-1/2 border-y-2 z-10 pointer-events-none opacity-0 ${isWinnerRound ? 'border-green-500 bg-green-500/10' : 'border-yellow-500 bg-yellow-500/10'
-            }`}></div>
+          {/* Línea de gane - CENTRADA CON EL RODILLO DEL MEDIO */}
+          <div className={`win-line absolute left-0 right-0 h-[80px] z-10 pointer-events-none opacity-0 ${isWinnerRound ? 'border-green-500 bg-green-500/10' : 'border-yellow-500 bg-yellow-500/10'
+            }`}
+            style={{
+              top: 'calc(50% - 40px)', // Centrado exacto
+              borderTop: '2px solid',
+              borderBottom: '2px solid'
+            }}
+          ></div>
 
           {/* Rodillo 1 - FC */}
           <div className="flex-1 h-full relative overflow-hidden border-r-2 border-prodispro-blue">
             <div
               ref={reel1Ref}
               className="absolute inset-x-0 w-full transition-transform will-change-transform"
+              style={{ top: '0px' }} // Posicionamiento inicial
             >
               {reelSymbols.reel1.map((symbol) => (
                 <div
@@ -514,11 +670,12 @@ const RouletteWheel = ({
             </div>
           </div>
 
-          {/* Rodillo 2 - Primera parte del número */}
+          {/* Rodillo 2 - RODILLO DEL MEDIO */}
           <div className="flex-1 h-full relative overflow-hidden border-r-2 border-prodispro-blue">
             <div
               ref={reel2Ref}
               className="absolute inset-x-0 w-full transition-transform will-change-transform"
+              style={{ top: '0px' }}
             >
               {reelSymbols.reel2.map((symbol) => (
                 <div
@@ -533,11 +690,12 @@ const RouletteWheel = ({
             </div>
           </div>
 
-          {/* Rodillo 3 - Segunda parte del número */}
+          {/* Rodillo 3 */}
           <div className="flex-1 h-full relative overflow-hidden">
             <div
               ref={reel3Ref}
               className="absolute inset-x-0 w-full transition-transform will-change-transform"
+              style={{ top: '0px' }}
             >
               {reelSymbols.reel3.map((symbol) => (
                 <div
@@ -584,7 +742,7 @@ const RouletteWheel = ({
                 onClick={spinReels}
                 disabled={isSpinning || isActive}
                 className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full shadow-lg transition-all duration-300 transform
-                  ${!isSpinning && !isActive ?
+                 ${!isSpinning && !isActive ?
                     'bg-gradient-to-b from-prodispro-blue to-prodispro-blue/80 hover:scale-110 active:scale-95 cursor-pointer' :
                     'bg-gradient-to-b from-gray-400 to-gray-600 cursor-not-allowed opacity-70'}`}
               >
@@ -606,7 +764,7 @@ const RouletteWheel = ({
       </div>
 
       {/* Botón de girar alternativo para móviles */}
-      {!isActive && !showResult && (
+      {!isActive && !resultShown && (
         <button
           onClick={spinReels}
           disabled={isSpinning}
@@ -618,7 +776,7 @@ const RouletteWheel = ({
           {isSpinning ? (
             <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-              <span>Girando...</span>
+              <span>Girando... ({SPIN_DURATION}s)</span>
             </div>
           ) : (
             <div className="flex items-center justify-center space-x-2">
@@ -629,7 +787,7 @@ const RouletteWheel = ({
         </button>
       )}
 
-      {showResult && (
+      {resultShown && (
         <div className="text-center mt-4">
           <div className={`text-lg font-bold ${isWinnerRound ? 'text-green-400' : 'text-yellow-400'
             }`}>
@@ -641,34 +799,34 @@ const RouletteWheel = ({
         </div>
       )}
 
-      {/* Instrucciones */}
+      {/* Instrucciones con tiempo actualizado */}
       <div className="text-center text-sm text-gray-400 mt-4">
-        {!isActive && !showResult ? (
+        {!isActive && !resultShown ? (
           isSpinning ? (
-            <p className="animate-pulse">🎰 Girando la máquina... ¡Espera el resultado!</p>
+            <p className="animate-pulse">🎰 Girando la máquina por {SPIN_DURATION} segundos... ¡Espera el resultado!</p>
           ) : (
             <p>Presiona el botón azul de la palanca para girar la máquina tragamonedas</p>
           )
-        ) : showResult ? (
+        ) : resultShown ? (
           <p>Resultado mostrado. Continuando automáticamente...</p>
         ) : null}
       </div>
 
       <style>{`
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-        
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(0.8); }
-        }
-        
-        .shadow-glow {
-          filter: drop-shadow(0 0 2px rgba(1, 155, 220, 0.7));
-        }
-      `}</style>
+       @keyframes blink {
+         0%, 100% { opacity: 1; }
+         50% { opacity: 0.3; }
+       }
+       
+       @keyframes pulse {
+         0%, 100% { opacity: 1; transform: scale(1); }
+         50% { opacity: 0.5; transform: scale(0.8); }
+       }
+       
+       .shadow-glow {
+         filter: drop-shadow(0 0 2px rgba(1, 155, 220, 0.7));
+       }
+     `}</style>
     </div>
   );
 };

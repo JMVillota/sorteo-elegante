@@ -180,6 +180,10 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
                         <p className="text-sm text-gray-400">
                           {loser.participant.ciudad} • {loser.participant.fechaFormateada}
                         </p>
+                        {/* VENDEDOR AGREGADO */}
+                        <p className="text-sm text-gray-500">
+                          Vendedor: {loser.participant.vendedor || 'N/A'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -212,6 +216,10 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
                         </p>
                         <p className="text-sm text-gray-400">
                           {winner.participant.ciudad} • {winner.participant.fechaFormateada}
+                        </p>
+                        {/* VENDEDOR AGREGADO */}
+                        <p className="text-sm text-gray-500">
+                          Vendedor: {winner.participant.vendedor || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -332,6 +340,10 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
                           <p className="text-xs text-gray-500">
                             {winner.participant.ciudad} • {winner.participant.fechaFormateada}
                           </p>
+                          {/* VENDEDOR AGREGADO */}
+                          <p className="text-xs text-gray-500">
+                            Vendedor: {winner.participant.vendedor || 'N/A'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -363,6 +375,10 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
                           </p>
                           <p className="text-xs text-gray-500">
                             {loser.participant.ciudad} • {loser.participant.fechaFormateada}
+                          </p>
+                          {/* VENDEDOR AGREGADO */}
+                          <p className="text-xs text-gray-500">
+                            Vendedor: {loser.participant.vendedor || 'N/A'}
                           </p>
                         </div>
                       </div>
