@@ -93,14 +93,28 @@ const RouletteWheel = ({
       audioRef.current = {
         slotSpin: new Howl({
           src: ['/assets/sounds/wheel-spinning.mp3'],
-          volume: 0.5,
+          volume: 0.3,
           loop: true,
           preload: true,
-          html5: true
+          html5: true,
+          onloaderror: (id, error) => {
+            console.warn('Error loading spin sound:', error);
+          }
+        }),
+        winner: new Howl({
+          src: ['/assets/sounds/winner.mp3'],
+          volume: 0.5,
+          preload: true,
+          html5: true,
+          onloaderror: (id, error) => {
+            console.warn('Error loading winner sound:', error);
+          }
         })
       };
 
+      // Precargar sonidos
       audioRef.current.slotSpin.load();
+      audioRef.current.winner.load();
     }
 
     // Animación de la palanca cuando no está girando
@@ -128,7 +142,6 @@ const RouletteWheel = ({
     const applyInitialEffects = () => {
       [reel1Ref, reel2Ref, reel3Ref].forEach(reelRef => {
         if (reelRef.current) {
-          // NO mover inicialmente, dejar en posición 0
           gsap.set(reelRef.current, { y: 0 });
 
           const items = reelRef.current.querySelectorAll('.reel-item');
@@ -163,6 +176,19 @@ const RouletteWheel = ({
       gsap.killTweensOf([leverKnobRef.current, leverParticlesRef.current]);
     };
   }, [isSpinning, isActive]);
+
+  // Reproducir sonido de ganador cuando hay un ganador
+  useEffect(() => {
+    if (winner && isWinnerRound && audioRef.current?.winner) {
+      // Detener sonido de giro si está reproduciéndose
+      if (audioRef.current.slotSpin.playing()) {
+        audioRef.current.slotSpin.stop();
+      }
+      
+      // Reproducir sonido de ganador
+      audioRef.current.winner.play();
+    }
+  }, [winner, isWinnerRound]);
 
   // Animar la palanca
   const animateLever = () => {
@@ -240,7 +266,7 @@ const RouletteWheel = ({
     });
   };
 
-  // Lógica de giro de la máquina tragamonedas - VERSIÓN ORIGINAL QUE FUNCIONABA
+  // Lógica de giro de la máquina tragamonedas
   const spinReels = () => {
     if (isSpinning || participants.length === 0) return;
 
@@ -256,8 +282,10 @@ const RouletteWheel = ({
       const randomIndex = Math.floor(Math.random() * participants.length);
       const selectedWinner = participants[randomIndex];
 
-      // Iniciar sonido cuando comienza a girar
+      // Iniciar sonido de giro cuando comienza a girar
       if (audioRef.current?.slotSpin) {
+        // Asegurar que el sonido se reproduzca desde el inicio
+        audioRef.current.slotSpin.seek(0);
         audioRef.current.slotSpin.play();
       }
 
@@ -302,7 +330,7 @@ const RouletteWheel = ({
 
       setReelSymbols(newSymbols);
 
-      // Función para girar cada rodillo - VERSIÓN ORIGINAL
+      // Función para girar cada rodillo
       const spinReel = (reelRef, delay, duration) => {
         if (!reelRef.current) return;
 
@@ -315,11 +343,6 @@ const RouletteWheel = ({
           delay,
           ease: "power2.inOut",
           onComplete: () => {
-            // Para centrar el elemento en la posición 2 (índice 2):
-            // Necesitamos calcular cuánto mover para que el elemento 2 esté en el centro
-            // El centro de la ventana está aproximadamente en la mitad de la altura total
-            // Si cada elemento tiene 80px de altura, necesitamos mover hacia arriba 1.5 elementos
-            // para que el elemento 2 quede centrado
             const centerOffset = -((winPosition - 1.5) * itemHeight);
             gsap.set(reelRef.current, { y: centerOffset });
 
@@ -360,8 +383,8 @@ const RouletteWheel = ({
         clearInterval(nameInterval);
         setDisplayParticipant(selectedWinner);
 
-        // Detener sonido
-        if (audioRef.current?.slotSpin) {
+        // Detener sonido de giro
+        if (audioRef.current?.slotSpin && audioRef.current.slotSpin.playing()) {
           audioRef.current.slotSpin.stop();
         }
 

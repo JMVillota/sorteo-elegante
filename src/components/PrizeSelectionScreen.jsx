@@ -12,6 +12,18 @@ const PrizeSelectionScreen = ({ prizes, participants, completedPrizes, onStartSo
     participant.vendedor.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const getPrizeImage = (prize) => {
+    if (prize.imagen && prize.imagen.trim()) {
+      // Si la imagen ya tiene el prefijo data:image, la usamos directamente
+      if (prize.imagen.startsWith('data:image')) {
+        return prize.imagen;
+      }
+      // Si no, asumimos que es base64 y agregamos el prefijo
+      return `data:image/jpeg;base64,${prize.imagen}`;
+    }
+    return null;
+  };
+
   const getPrizeIcon = (prizeName) => {
     if (prizeName.includes("CAFETERA")) return "☕";
     if (prizeName.includes("ASPIRADORA")) return "🧹";
@@ -30,6 +42,7 @@ const PrizeSelectionScreen = ({ prizes, participants, completedPrizes, onStartSo
           {prizes.map((prize) => {
             const isCompleted = completedPrizes.includes(prize.id);
             const isSelected = selectedPrize?.id === prize.id;
+            const prizeImage = getPrizeImage(prize);
             
             return (
               <div
@@ -44,9 +57,29 @@ const PrizeSelectionScreen = ({ prizes, participants, completedPrizes, onStartSo
                 onClick={() => !isCompleted && setSelectedPrize(prize)}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="text-3xl">{getPrizeIcon(prize.name)}</div>
-                    <div>
+                  <div className="flex items-center space-x-4">
+                    {/* Mostrar imagen del premio o emoji como fallback */}
+                    <div className="w-16 h-16 flex-shrink-0">
+                      {prizeImage ? (
+                        <img 
+                          src={prizeImage} 
+                          alt={prize.name}
+                          className="w-full h-full object-cover rounded-lg border border-prodispro-blue/30"
+                          onError={(e) => {
+                            console.warn('Error loading prize image:', e);
+                            e.target.style.display = 'none';
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className={`w-full h-full ${prizeImage ? 'hidden' : 'flex'} items-center justify-center text-4xl bg-prodispro-light-gray rounded-lg border border-prodispro-blue/30`}
+                      >
+                        {getPrizeIcon(prize.name)}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1">
                       <h3 className="text-lg font-semibold">{prize.name}</h3>
                       <p className="text-sm text-gray-400">
                         Cantidad: {prize.cantidad} {prize.cantidad === 1 ? 'unidad' : 'unidades'}
@@ -77,11 +110,28 @@ const PrizeSelectionScreen = ({ prizes, participants, completedPrizes, onStartSo
         {selectedPrize && !completedPrizes.includes(selectedPrize.id) && (
           <div className="mt-6 p-4 bg-prodispro-blue/10 border border-prodispro-blue rounded-lg">
             <h4 className="font-semibold text-prodispro-blue mb-2">Premio Seleccionado:</h4>
-            <p className="text-lg">{selectedPrize.name}</p>
-            <p className="text-sm text-gray-400 mb-4">
-              Se realizarán {selectedPrize.cantidad * 3} sorteos total 
-              ({selectedPrize.cantidad * 2} perdedores + {selectedPrize.cantidad} ganador{selectedPrize.cantidad > 1 ? 'es' : ''})
-            </p>
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12">
+                {getPrizeImage(selectedPrize) ? (
+                  <img 
+                    src={getPrizeImage(selectedPrize)} 
+                    alt={selectedPrize.name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-2xl bg-prodispro-light-gray rounded-lg">
+                    {getPrizeIcon(selectedPrize.name)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-lg font-bold">{selectedPrize.name}</p>
+                <p className="text-sm text-gray-400">
+                  Se realizarán {selectedPrize.cantidad * 3} sorteos total 
+                  ({selectedPrize.cantidad * 2} perdedores + {selectedPrize.cantidad} ganador{selectedPrize.cantidad > 1 ? 'es' : ''})
+                </p>
+              </div>
+            </div>
             
             <button
               onClick={() => onStartSorteo(selectedPrize)}

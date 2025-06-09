@@ -265,3 +265,102 @@ body {
 .h-96 {
   height: 36rem;
 }
+/* Efectos adicionales para pantallas grandes */
+@media (min-width: 1536px) {
+  .large-screen-layout {
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .large-screen-header {
+    background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%);
+    border-bottom: 2px solid rgba(1, 155, 220, 0.3);
+  }
+  
+  .large-screen-column {
+    height: calc(100vh - 300px);
+    overflow-y: auto;
+  }
+  
+  /* Scrollbar personalizado para pantallas grandes */
+  .large-screen-column::-webkit-scrollbar {
+    width: 12px;
+  }
+  
+  .large-screen-column::-webkit-scrollbar-track {
+    background: var(--prodispro-gray);
+    border-radius: 6px;
+  }
+  
+  .large-screen-column::-webkit-scrollbar-thumb {
+    background: var(--prodispro-blue);
+    border-radius: 6px;
+  }
+  
+  .large-screen-column::-webkit-scrollbar-thumb:hover {
+    background: rgba(1, 155, 220, 0.8);
+  }
+}
+
+/* Animaciones para ganadores */
+.winner-glow {
+  animation: winnerGlow 2s infinite;
+}
+
+@keyframes winnerGlow {
+  0%, 100% { 
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.8);
+    transform: scale(1.02);
+  }
+}
+
+/* Efectos de partículas mejorados */
+.particle-effect {
+  position: relative;
+  overflow: visible;
+}
+
+.particle-effect::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  background: radial-gradient(circle, rgba(1, 155, 220, 0.1) 0%, transparent 70%);
+  border-radius: inherit;
+  z-index: -1;
+  animation: particleFloat 3s ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.5; }
+  50% { transform: scale(1.1) rotate(180deg); opacity: 0.8; }
+}
+
+/* Efectos de transición suaves */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Gradientes dinámicos */
+.dynamic-gradient {
+  background: linear-gradient(
+    45deg,
+    var(--prodispro-blue),
+    rgba(1, 155, 220, 0.7),
+    var(--prodispro-blue)
+  );
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
