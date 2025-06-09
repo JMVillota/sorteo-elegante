@@ -119,29 +119,80 @@ body {
 
 /* Botones personalizados */
 .btn-primary {
-  @apply bg-prodispro-blue hover:bg-opacity-80 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105;
+  background-color: var(--prodispro-blue);
+  color: white;
+  font-weight: 600;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  transition-property: background-color, color, transform;
+}
+
+.btn-primary:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
 }
 
 .btn-secondary {
-  @apply bg-prodispro-light-gray hover:bg-opacity-80 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105;
+  background-color: var(--prodispro-light-gray);
+  color: white;
+  font-weight: 600;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
 }
 
 /* Cards personalizadas */
 .card {
-  @apply bg-prodispro-gray rounded-xl p-6 border border-prodispro-light-gray hover:border-prodispro-blue transition-all duration-300;
+  background-color: var(--prodispro-gray);
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1.5rem; /* p-6 */
+  border: 1px solid var(--prodispro-light-gray);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.card:hover {
+  border-color: var(--prodispro-blue);
 }
 
 .card-winner {
-  @apply bg-gradient-to-r from-green-600/20 to-green-400/20 border border-green-500/50 rounded-lg p-4;
+  background-image: linear-gradient(to right, rgba(22, 163, 74, 0.2), rgba(132, 204, 22, 0.2));
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  border-radius: 0.5rem;
+  padding: 1rem;
 }
 
 .card-loser {
-  @apply bg-gradient-to-r from-yellow-600/20 to-yellow-400/20 border border-yellow-500/50 rounded-lg p-4;
+  background-image: linear-gradient(to right, rgba(202, 138, 4, 0.2), rgba(253, 224, 71, 0.2));
+  border: 1px solid rgba(253, 224, 71, 0.5);
+  border-radius: 0.5rem;
+  padding: 1rem;
 }
 
 /* Estados de carga */
 .loading-spinner {
-  @apply animate-spin w-6 h-6 border-2 border-prodispro-blue border-t-transparent rounded-full;
+  animation: spin 1s linear infinite;
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+  border-width: 2px; /* border-2 */
+  border-style: solid;
+  border-color: rgb(1, 155, 220); /* border-prodispro-blue */
+  border-top-color: transparent; /* border-t-transparent */
+  border-radius: 9999px; /* rounded-full */
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Responsive utilities */
