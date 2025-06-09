@@ -12,7 +12,7 @@ function App() {
   const [prizes, setPrizes] = useState([]);
   const [winners, setWinners] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentScreen, setCurrentScreen] = useState('prize-selection'); // 'prize-selection', 'sorteo', 'winners'
+  const [currentScreen, setCurrentScreen] = useState('prize-selection');
   const [selectedPrize, setSelectedPrize] = useState(null);
   const [completedPrizes, setCompletedPrizes] = useState([]);
 
@@ -43,39 +43,97 @@ function App() {
 
   // Manejar selección de premio y comenzar sorteo
   const handleStartSorteo = (prize) => {
+    console.log('🎯 Iniciando sorteo para premio:', prize.name);
     setSelectedPrize(prize);
     setCurrentScreen('sorteo');
   };
 
-  // Manejar finalización del sorteo de un premio
+  // CORREGIDO: Manejar finalización del sorteo de un premio
   const handleSorteoComplete = (prizeWinners) => {
-    // Agregar ganadores a la lista total
-    setWinners([...winners, ...prizeWinners]);
+    console.log('🎯 Sorteo completado para premio:', selectedPrize?.name);
+    console.log('🏆 Ganadores del premio actual:', prizeWinners);
+    console.log('📊 Cantidad de ganadores recibidos:', prizeWinners.length);
+
+    // Agregar SOLO los ganadores reales (no perdedores) a la lista total
+    const actualWinners = prizeWinners.filter(winner => winner && winner.participant);
+    console.log('✅ Ganadores reales a agregar:', actualWinners.length);
+
+    const newWinners = [...winners, ...actualWinners];
+    setWinners(newWinners);
     
-    // Marcar premio como completado
-    setCompletedPrizes([...completedPrizes, selectedPrize.id]);
+    // Marcar este premio específico como completado
+    const newCompletedPrizes = [...completedPrizes, selectedPrize.id];
+    setCompletedPrizes(newCompletedPrizes);
     
-    // Verificar si todos los premios están completados
-    const allCompleted = prizes.every(prize => 
-      completedPrizes.includes(prize.id) || prize.id === selectedPrize.id
-    );
+    console.log('📊 Estado después del sorteo:');
+    console.log('   - Total ganadores acumulados:', newWinners.length);
+    console.log('   - Premios completados:', newCompletedPrizes.length);
+    console.log('   - Total premios disponibles:', prizes.length);
+    console.log('   - Premios completados IDs:', newCompletedPrizes);
+    console.log('   - Todos los premios IDs:', prizes.map(p => p.id));
     
-    if (allCompleted) {
-      setCurrentScreen('winners');
+    // CORREGIDO: Verificar si REALMENTE todos los premios están completados
+    const totalPrizesAvailable = prizes.length;
+    const totalPrizesCompleted = newCompletedPrizes.length;
+    const allPrizesCompleted = totalPrizesCompleted >= totalPrizesAvailable;
+    
+    console.log('🎯 ¿Todos los premios completados?', allPrizesCompleted);
+    console.log('   - Premios disponibles:', totalPrizesAvailable);
+    console.log('   - Premios completados:', totalPrizesCompleted);
+    
+    if (allPrizesCompleted && totalPrizesAvailable > 0) {
+      console.log('🎉 TODOS LOS PREMIOS COMPLETADOS - Ir a pantalla de ganadores finales');
+      setTimeout(() => {
+        setCurrentScreen('winners');
+        setSelectedPrize(null);
+      }, 1000);
     } else {
-      setCurrentScreen('prize-selection');
+      console.log('📋 Faltan premios por sortear - Volver a selección de premios');
+      console.log('   - Premios restantes:', totalPrizesAvailable - totalPrizesCompleted);
+      setTimeout(() => {
+        setCurrentScreen('prize-selection');
+        setSelectedPrize(null);
+      }, 1000);
     }
-    
-    setSelectedPrize(null);
   };
 
   // Reiniciar todo el sorteo
   const handleResetSorteo = () => {
+    console.log('🔄 Reiniciando sorteo completo');
     setWinners([]);
     setCompletedPrizes([]);
     setSelectedPrize(null);
     setCurrentScreen('prize-selection');
   };
+
+  // Debug: Log del estado actual cuando cambia
+  useEffect(() => {
+    console.log('📊 Estado actual de la aplicación:', {
+      currentScreen,
+      totalPrizes: prizes.length,
+      prizesIds: prizes.map(p => ({ id: p.id, name: p.name, cantidad: p.cantidad })),
+      completedPrizes: completedPrizes.length,
+      completedPrizesIds: completedPrizes,
+      totalWinners: winners.length,
+      winnersDetails: winners.map(w => ({ 
+        name: w.participant?.name, 
+        prize: w.prize?.name,
+        prizeId: w.prize?.id 
+      })),
+      selectedPrize: selectedPrize ? { id: selectedPrize.id, name: selectedPrize.name } : null
+    });
+  }, [currentScreen, prizes, completedPrizes, winners, selectedPrize]);
+
+  // ADICIONAL: Verificar integridad de datos cuando se cargan los premios
+  useEffect(() => {
+    if (prizes.length > 0) {
+      console.log('🎁 Premios cargados:', prizes.map(p => ({
+        id: p.id,
+        name: p.name,
+        cantidad: p.cantidad
+      })));
+    }
+  }, [prizes]);
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -95,9 +153,37 @@ function App() {
               </div>
             </div>
             
-            {currentScreen !== 'prize-selection' && (
+            {/* Información del progreso MEJORADA */}
+            <div className="hidden md:flex items-center space-x-6">
+              <div className="text-center">
+                <div className="text-lg font-bold text-prodispro-blue">
+                  {completedPrizes.length}/{prizes.length}
+                </div>
+                <div className="text-xs text-gray-400">Premios Completados</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-400">
+                  {winners.length}
+                </div>
+                <div className="text-xs text-gray-400">Total Ganadores</div>
+              </div>
+              {/* Mostrar premio actual si está en sorteo */}
+              {currentScreen === 'sorteo' && selectedPrize && (
+                <div className="text-center">
+                  <div className="text-sm font-bold text-yellow-400">
+                    {selectedPrize.name}
+                  </div>
+                  <div className="text-xs text-gray-400">Premio Actual</div>
+                </div>
+              )}
+            </div>
+            
+            {currentScreen !== 'prize-selection' && currentScreen !== 'winners' && (
               <button
-                onClick={() => setCurrentScreen('prize-selection')}
+                onClick={() => {
+                  console.log('🔙 Volviendo a selección de premios');
+                  setCurrentScreen('prize-selection');
+                }}
                 className="px-4 py-2 bg-prodispro-blue hover:bg-prodispro-blue/80 rounded-lg transition-colors"
               >
                 Volver al Inicio
@@ -118,7 +204,7 @@ function App() {
           />
         )}
         
-        {currentScreen === 'sorteo' && (
+        {currentScreen === 'sorteo' && selectedPrize && (
           <SorteoScreen
             prize={selectedPrize}
             participants={participants}
