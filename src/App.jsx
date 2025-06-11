@@ -106,15 +106,33 @@ function App() {
     setCurrentScreen('prize-selection');
   };
 
+  // CALCULAR TOTALES CORRECTOS
+  const getTotalExpectedWinners = () => {
+    return prizes.reduce((total, prize) => total + prize.cantidad, 0);
+  };
+
+  const getCurrentWinnersCount = () => {
+    return winners.length;
+  };
+
+  const getCompletedPrizesCount = () => {
+    return completedPrizes.length;
+  };
+
+  const getTotalPrizesCount = () => {
+    return prizes.length;
+  };
+
   // Debug: Log del estado actual cuando cambia
   useEffect(() => {
     console.log('📊 Estado actual de la aplicación:', {
       currentScreen,
-      totalPrizes: prizes.length,
+      totalPrizes: getTotalPrizesCount(),
       prizesIds: prizes.map(p => ({ id: p.id, name: p.name, cantidad: p.cantidad })),
-      completedPrizes: completedPrizes.length,
+      completedPrizes: getCompletedPrizesCount(),
       completedPrizesIds: completedPrizes,
-      totalWinners: winners.length,
+      totalWinners: getCurrentWinnersCount(),
+      expectedWinners: getTotalExpectedWinners(),
       winnersDetails: winners.map(w => ({ 
         name: w.participant?.name, 
         prize: w.prize?.name,
@@ -132,6 +150,8 @@ function App() {
         name: p.name,
         cantidad: p.cantidad
       })));
+      console.log('🎯 Total de premios diferentes:', prizes.length);
+      console.log('🏆 Total de ganadores esperados:', getTotalExpectedWinners());
     }
   }, [prizes]);
 
@@ -153,19 +173,25 @@ function App() {
               </div>
             </div>
             
-            {/* Información del progreso MEJORADA */}
+            {/* Información del progreso CORREGIDA */}
             <div className="hidden md:flex items-center space-x-6">
               <div className="text-center">
                 <div className="text-lg font-bold text-prodispro-blue">
-                  {completedPrizes.length}/{prizes.length}
+                  {getCompletedPrizesCount()}/{getTotalPrizesCount()}
                 </div>
                 <div className="text-xs text-gray-400">Premios Completados</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-green-400">
-                  {winners.length}
+                  {getCurrentWinnersCount()}
                 </div>
-                <div className="text-xs text-gray-400">Total Ganadores</div>
+                <div className="text-xs text-gray-400">Ganadores Actuales</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-yellow-400">
+                  {getTotalExpectedWinners()}
+                </div>
+                <div className="text-xs text-gray-400">Total Esperado</div>
               </div>
               {/* Mostrar premio actual si está en sorteo */}
               {currentScreen === 'sorteo' && selectedPrize && (
@@ -215,6 +241,7 @@ function App() {
         {currentScreen === 'winners' && (
           <WinnersScreen
             winners={winners}
+            prizes={prizes}
             onReset={handleResetSorteo}
           />
         )}
