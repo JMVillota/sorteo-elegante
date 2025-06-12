@@ -50,51 +50,13 @@ function App() {
 
   // CORREGIDO: Manejar finalización del sorteo de un premio
   const handleSorteoComplete = (prizeWinners) => {
-    console.log('🎯 Sorteo completado para premio:', selectedPrize?.name);
-    console.log('🏆 Ganadores del premio actual:', prizeWinners);
-    console.log('📊 Cantidad de ganadores recibidos:', prizeWinners.length);
-
     // Agregar SOLO los ganadores reales (no perdedores) a la lista total
     const actualWinners = prizeWinners.filter(winner => winner && winner.participant);
-    console.log('✅ Ganadores reales a agregar:', actualWinners.length);
 
-    const newWinners = [...winners, ...actualWinners];
-    setWinners(newWinners);
-    
-    // Marcar este premio específico como completado
-    const newCompletedPrizes = [...completedPrizes, selectedPrize.id];
-    setCompletedPrizes(newCompletedPrizes);
-    
-    console.log('📊 Estado después del sorteo:');
-    console.log('   - Total ganadores acumulados:', newWinners.length);
-    console.log('   - Premios completados:', newCompletedPrizes.length);
-    console.log('   - Total premios disponibles:', prizes.length);
-    console.log('   - Premios completados IDs:', newCompletedPrizes);
-    console.log('   - Todos los premios IDs:', prizes.map(p => p.id));
-    
-    // CORREGIDO: Verificar si REALMENTE todos los premios están completados
-    const totalPrizesAvailable = prizes.length;
-    const totalPrizesCompleted = newCompletedPrizes.length;
-    const allPrizesCompleted = totalPrizesCompleted >= totalPrizesAvailable;
-    
-    console.log('🎯 ¿Todos los premios completados?', allPrizesCompleted);
-    console.log('   - Premios disponibles:', totalPrizesAvailable);
-    console.log('   - Premios completados:', totalPrizesCompleted);
-    
-    if (allPrizesCompleted && totalPrizesAvailable > 0) {
-      console.log('🎉 TODOS LOS PREMIOS COMPLETADOS - Ir a pantalla de ganadores finales');
-      setTimeout(() => {
-        setCurrentScreen('winners');
-        setSelectedPrize(null);
-      }, 1000);
-    } else {
-      console.log('📋 Faltan premios por sortear - Volver a selección de premios');
-      console.log('   - Premios restantes:', totalPrizesAvailable - totalPrizesCompleted);
-      setTimeout(() => {
-        setCurrentScreen('prize-selection');
-        setSelectedPrize(null);
-      }, 1000);
-    }
+    setWinners(prev => [...prev, ...actualWinners]);
+    setCompletedPrizes(prev => [...prev, selectedPrize.id]);
+    setSelectedPrize(null);
+    setCurrentScreen('prize-selection'); // SIEMPRE volver a selección de premios
   };
 
   // Reiniciar todo el sorteo
@@ -154,6 +116,23 @@ function App() {
       console.log('🏆 Total de ganadores esperados:', getTotalExpectedWinners());
     }
   }, [prizes]);
+
+  // Nuevo efecto para mostrar la pantalla de ganadores SOLO cuando todos los premios estén sorteados
+  useEffect(() => {
+    const totalExpectedWinners = getTotalExpectedWinners();
+    const totalCurrentWinners = winners.length;
+
+    // Verifica que se hayan sorteado todas las unidades de todos los premios
+    if (
+      totalExpectedWinners > 0 &&
+      totalCurrentWinners >= totalExpectedWinners &&
+      completedPrizes.length === prizes.length
+    ) {
+      setTimeout(() => {
+        setCurrentScreen('winners');
+      }, 800);
+    }
+  }, [winners, completedPrizes, prizes]);
 
   if (isLoading) {
     return <LoadingScreen />;
