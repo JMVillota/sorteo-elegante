@@ -65,7 +65,7 @@ const WinnerModal = ({
         onClick={(e) => e.target === e.currentTarget && onContinue?.()}
       >
         {/* Modal */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl shadow-2xl border border-slate-600 max-w-lg w-full mx-2 sm:mx-4 animate-scale-up">
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl shadow-2xl border border-slate-600 max-w-3xl w-full mx-2 sm:mx-4 animate-scale-up">
           
           {/* Header */}
           <div className={`p-4 sm:p-8 text-center rounded-t-3xl ${
@@ -79,99 +79,93 @@ const WinnerModal = ({
             <h2 className="text-xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">
               {isWinnerRound ? '¡GANADOR!' : '¡ELIMINADO!'}
             </h2>
-            <div className="text-base sm:text-xl text-white/90">
-              {isWinnerRound ? 'Felicitaciones' : 'Has sido eliminado'}
+            <div className="text-base sm:text-xl text-white/90 mb-1">
+              {isWinnerRound ? '¡Felicitaciones por tu premio!' : 'Has sido eliminado'}
+            </div>
+            <div className="text-lg sm:text-2xl font-extrabold text-white break-words uppercase tracking-wide">
+              {winner.name}
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-4 sm:p-8">
-            <div className="flex flex-col md:flex-row gap-4 sm:gap-8 items-stretch justify-center">
-              {/* Winner Info */}
-              <div className="md:w-1/2">
-                <div className="text-center mb-4 md:mb-0">
-                  <div className={`w-14 h-14 sm:w-20 sm:h-20 mx-auto mb-2 sm:mb-4 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-white shadow-lg ${
-                    isWinnerRound 
-                      ? 'bg-gradient-to-br from-emerald-600 to-green-700' 
-                      : 'bg-gradient-to-br from-red-600 to-rose-700'
-                  }`}>
-                    {winner.name.charAt(0)}
+          <div className="p-4 sm:p-8 flex flex-col gap-4">
+            {/* Fila 1: Vendedor y datos */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-center gap-4">
+              {/* Vendedor */}
+              <div className="flex items-center gap-3 md:gap-4 justify-center">
+                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-white shadow-lg ${
+                  isWinnerRound 
+                    ? 'bg-gradient-to-br from-emerald-600 to-green-700' 
+                    : 'bg-gradient-to-br from-red-600 to-rose-700'
+                }`}>
+                  {winner.vendedor ? winner.vendedor.charAt(0) : '👤'}
+                </div>
+                <div className="text-left">
+                  <div className="text-base sm:text-lg font-bold text-white break-words uppercase leading-tight">
+                    {winner.vendedor || 'N/A'}
                   </div>
-                  <h3 className="text-lg sm:text-2xl font-bold text-white mb-1 sm:mb-2 truncate">
-                    {winner.name}
-                  </h3>
-                  <div className="text-slate-400 space-y-1 text-xs sm:text-base break-words">
-                    <p className="flex items-center justify-center space-x-1 sm:space-x-2">
-                      <span>📄</span>
-                      <span className="truncate max-w-[120px] sm:max-w-full">{winner.invoiceNumber}</span>
-                    </p>
-                    <p className="flex items-center justify-center space-x-1 sm:space-x-2">
-                      <span>📍</span>
-                      <span className="truncate max-w-[120px] sm:max-w-full">{winner.ciudad}</span>
-                    </p>
-                    <p className="flex items-center justify-center space-x-1 sm:space-x-2">
-                      <span>👤</span>
-                      <span className="truncate max-w-[120px] sm:max-w-full">{winner.vendedor || 'N/A'}</span>
-                    </p>
-                  </div>
+                  <div className="text-xs sm:text-sm text-slate-400">Vendedor</div>
                 </div>
               </div>
+              {/* Datos del cliente */}
+              <div className="flex flex-col sm:flex-row items-center gap-2 md:gap-4 justify-center md:ml-8">
+                <div className="flex items-center gap-2">
+                  <span>📄</span>
+                  <span className="font-mono text-white text-sm sm:text-base">{winner.invoiceNumber}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>📍</span>
+                  <span className="text-white text-sm sm:text-base">{winner.ciudad}</span>
+                </div>
+              </div>
+            </div>
 
-              {/* Prize Info - Solo para ganadores */}
-              {isWinnerRound && prize && (
-                <div className="md:w-1/2 flex items-center">
-                  <div className="w-full p-3 sm:p-6 rounded-2xl border-2 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border-emerald-400/30">
-                    <div className="flex items-center space-x-2 sm:space-x-4">
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
-                        {getPrizeImage(prize) ? (
-                          <img 
-                            src={getPrizeImage(prize)}
-                            alt={prize.name}
-                            className="w-full h-full object-cover rounded-xl border-2 border-emerald-400"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl sm:text-4xl bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl border-2 border-emerald-400">
-                            {getPrizeIcon(prize.name)}
-                          </div>
-                        )}
+            {/* Fila 2: Premio o mensaje */}
+            <div className="w-full flex justify-center">
+              {isWinnerRound && prize ? (
+                <div className="flex items-center gap-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-400/30 rounded-2xl p-4 w-full max-w-xl">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0 flex items-center justify-center">
+                    {getPrizeImage(prize) ? (
+                      <img 
+                        src={getPrizeImage(prize)}
+                        alt={prize.name}
+                        className="w-full h-full object-cover rounded-xl border-2 border-emerald-400"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-2xl sm:text-4xl bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl border-2 border-emerald-400">
+                        {getPrizeIcon(prize.name)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-base sm:text-xl font-bold text-emerald-400 mb-1 truncate">
-                          {prize.name}
-                        </h4>
-                        <p className="text-slate-300 text-xs sm:text-base">
-                          Unidad {unit} de {prize.cantidad}
-                        </p>
-                        <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                          ¡Has ganado este increíble premio!
-                        </p>
-                      </div>
-                    </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-base sm:text-lg font-bold text-emerald-400 mb-1 uppercase">
+                      {prize.name}
+                    </h4>
+                    <p className="text-slate-300 text-xs sm:text-base">
+                      Unidad {unit} de {prize.cantidad}
+                    </p>
+                    <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                      ¡Has ganado este increíble premio!
+                    </p>
                   </div>
                 </div>
-              )}
-
-              {/* Mensaje para eliminados */}
-              {!isWinnerRound && (
-                <div className="md:w-1/2 flex items-center">
-                  <div className="w-full p-3 sm:p-6 rounded-2xl border-2 bg-gradient-to-r from-red-500/10 to-rose-500/10 border-red-400/30">
-                    <div className="text-center">
-                      <div className="text-2xl sm:text-4xl mb-2 sm:mb-3">💪</div>
-                      <h4 className="text-base sm:text-xl font-bold text-red-400 mb-1 sm:mb-2">
-                        No te desanimes
-                      </h4>
-                      <p className="text-slate-300 text-xs sm:text-base mb-1 sm:mb-2">
-                        Has sido eliminado en esta ronda
-                      </p>
-                      <p className="text-xs sm:text-sm text-slate-400">
-                        ¡Gracias por participar en nuestro sorteo!
-                      </p>
-                    </div>
-                  </div>
+              ) : (
+                <div className="w-full max-w-xl bg-gradient-to-r from-red-500/10 to-rose-500/10 border border-red-400/30 rounded-2xl p-4 text-center">
+                  <div className="text-2xl mb-2">💪</div>
+                  <h4 className="text-base sm:text-xl font-bold text-red-400 mb-1">
+                    ¡No te desanimes!
+                  </h4>
+                  <p className="text-slate-300 text-xs sm:text-base mb-1">
+                    Has sido eliminado en esta ronda, pero sigue participando.
+                  </p>
+                  <p className="text-xs sm:text-sm text-slate-400">
+                    ¡Gracias por participar en nuestro sorteo!
+                  </p>
                 </div>
               )}
             </div>
-            {/* Continue Button */}
+
+            {/* Botón continuar */}
             <button
               onClick={onContinue}
               className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-2xl font-bold text-base sm:text-xl transition-all duration-300 hover:scale-105 shadow-xl flex items-center justify-center space-x-2 sm:space-x-3 ${
@@ -183,7 +177,7 @@ const WinnerModal = ({
               <span className="text-xl sm:text-2xl animate-bounce">
                 {isWinnerRound ? '🎯' : '👍'}
               </span>
-              <span>Continuar</span>
+              <span>{isWinnerRound ? 'Continuar' : 'Seguir participando'}</span>
               <span className="text-xl sm:text-2xl animate-bounce" style={{ animationDelay: '0.2s' }}>
                 {isWinnerRound ? '🎉' : '🔥'}
               </span>
@@ -197,8 +191,8 @@ const WinnerModal = ({
               </p>
             </div>
           </div>
-       </div>
-     </div>
+        </div>
+      </div>
 
      <style>{`
        @keyframes fade-in {
