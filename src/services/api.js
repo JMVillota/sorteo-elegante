@@ -6,7 +6,7 @@ export const getParticipants = async () => {
     console.log('🔄 Cargando participantes desde archivo local...');
     const startTime = Date.now();
     
-    const response = await fetch('/participantes.json');
+    const response = await fetch('./participantes.json');
     
     if (!response.ok) {
       throw new Error(`Error cargando participantes.json: ${response.status}`);
@@ -53,9 +53,9 @@ export const getPrizes = async () => {
   try {
     console.log('🔄 Cargando premios desde archivo local...');
     const startTime = Date.now();
-    
-    const response = await fetch('/premios.json');
-    
+
+    const response = await fetch('./premios.json');
+
     if (!response.ok) {
       throw new Error(`Error cargando premios.json: ${response.status}`);
     }
