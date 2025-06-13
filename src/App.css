@@ -1,0 +1,310 @@
+/* src/App.css */
+
+/* Colores mejorados para el sistema */
+:root {
+  --prodispro-blue: #019BDC;
+  --prodispro-cyan: #22D3EE;
+  --prodispro-black: #0f172a;
+  --prodispro-gray: #1e293b;
+  --prodispro-light-gray: #334155;
+  --prodispro-slate: #475569;
+  
+  /* Nuevos colores para ganadores y perdedores */
+  --winner-green: #10b981;
+  --winner-emerald: #059669;
+  --loser-amber: #f59e0b;
+  --loser-yellow: #eab308;
+  
+  /* Gradientes */
+  --gradient-primary: linear-gradient(135deg, #019BDC, #22D3EE);
+  --gradient-winner: linear-gradient(135deg, #10b981, #059669);
+  --gradient-loser: linear-gradient(135deg, #f59e0b, #eab308);
+  --gradient-dark: linear-gradient(135deg, #0f172a, #1e293b);
+}
+
+/* Mejoras generales */
+body {
+  background: var(--gradient-dark);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Scrollbar personalizado mejorado */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--prodispro-gray);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gradient-primary);
+  border-radius: 6px;
+  border: 2px solid var(--prodispro-gray);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gradient-winner);
+}
+
+/* Animaciones mejoradas */
+@keyframes shimmer-enhanced {
+  0% { 
+    transform: translateX(-100%) skewX(-15deg); 
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% { 
+    transform: translateX(200%) skewX(-15deg); 
+    opacity: 0;
+  }
+}
+
+.animate-shimmer-enhanced {
+  animation: shimmer-enhanced 2s infinite;
+}
+
+@keyframes float-gentle {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
+    opacity: 0.7;
+  }
+  50% { 
+    transform: translateY(-10px) rotate(180deg); 
+    opacity: 1;
+  }
+}
+
+.animate-float-gentle {
+  animation: float-gentle 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--prodispro-blue), 0 0 10px var(--prodispro-blue), 0 0 15px var(--prodispro-blue);
+  }
+  50% {
+    box-shadow: 0 0 10px var(--prodispro-cyan), 0 0 20px var(--prodispro-cyan), 0 0 30px var(--prodispro-cyan);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s infinite;
+}
+
+/* Efectos de hover mejorados */
+.hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Gradientes de texto */
+.text-gradient-primary {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-winner {
+  background: var(--gradient-winner);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-loser {
+  background: var(--gradient-loser);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Botones mejorados */
+.btn-modern {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.btn-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-modern:hover::before {
+  left: 100%;
+}
+
+.btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Cards mejoradas */
+.card-modern {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--gradient-primary);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.card-modern:hover::before {
+  opacity: 1;
+}
+
+.card-modern:hover {
+  transform: translateY(-4px);
+  border-color: rgba(1, 155, 220, 0.3);
+  box-shadow: 0 20px 40px rgba(1, 155, 220, 0.1);
+}
+
+/* Responsive mejoras */
+@media (max-width: 768px) {
+  .card-modern {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .btn-modern {
+    padding: 10px 20px;
+    border-radius: 10px;
+  }
+}
+
+/* Estados de loading mejorados */
+.loading-modern {
+  position: relative;
+  display: inline-block;
+}
+
+.loading-modern::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid transparent;
+  border-top: 2px solid var(--prodispro-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Efectos de partículas */
+.particle-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--prodispro-blue);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particle-float 6s infinite linear;
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(100vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Mejoras para accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer,
+  .animate-shimmer-enhanced,
+  .animate-float-gentle,
+  .animate-glow-pulse,
+  .particle {
+    animation: none;
+  }
+  
+  .hover-lift:hover,
+  .btn-modern:hover,
+  .card-modern:hover {
+    transform: none;
+  }
+}
+
+/* Focus states mejorados */
+.focus-modern:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(1, 155, 220, 0.3);
+  border-color: var(--prodispro-blue);
+}
+
+/* Utilidades adicionales */
+.backdrop-modern {
+  backdrop-filter: blur(10px) saturate(150%);
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.shadow-modern {
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.shadow-modern-lg {
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}

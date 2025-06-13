@@ -1,6 +1,13 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { getParticipants, getPrizes } from './services/api';
+import { 
+  getParticipants, 
+  getPrizes, 
+  getSystemStats, 
+  validateData,
+  checkLocalFiles,
+  preloadPrizeImages
+} from './services/api';
 import LoadingScreen from './components/LoadingScreen';
 import PrizeSelectionScreen from './components/PrizeSelectionScreen';
 import SorteoScreen from './components/SorteoScreen';
@@ -15,51 +22,162 @@ function App() {
   const [currentScreen, setCurrentScreen] = useState('prize-selection');
   const [selectedPrize, setSelectedPrize] = useState(null);
   const [completedPrizes, setCompletedPrizes] = useState([]);
+  const [systemStats, setSystemStats] = useState(null);
 
-  // Cargar datos desde la API
+  // Estados para el loading sincronizado
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('Iniciando sistema...');
+
+  const loadingSteps = [
+    { message: 'Inicializando sistema de sorteo...', progress: 10 },
+    { message: 'Verificando archivos JSON...', progress: 20 },
+    { message: 'Cargando participantes...', progress: 40 },
+    { message: 'Cargando premios...', progress: 60 },
+    { message: 'Validando datos...', progress: 75 },
+    { message: 'Precargando imágenes...', progress: 85 },
+    { message: 'Calculando estadísticas...', progress: 95 },
+    { message: '¡Sistema listo para sortear!', progress: 100 }
+  ];
+
+  // Función para actualizar el progreso de carga
+  const updateLoadingProgress = (step, customMessage = null, customProgress = null) => {
+    if (step < loadingSteps.length) {
+      setLoadingStep(step);
+      setLoadingProgress(customProgress || loadingSteps[step].progress);
+      setLoadingMessage(customMessage || loadingSteps[step].message);
+    }
+  };
+
+  // Cargar datos súper rápido desde JSON
   useEffect(() => {
     const loadData = async () => {
+      const startTime = Date.now();
+      
       try {
-        setIsLoading(true);
-        const participantsData = await getParticipants();
-        const prizesData = await getPrizes();
+        console.log('🚀 Iniciando carga súper rápida desde archivos JSON...');
         
-        if (participantsData.length > 0 && prizesData.length > 0) {
-          setParticipants(participantsData);
-          setPrizes(prizesData);
+        // Paso 1: Inicializar
+        updateLoadingProgress(0);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Paso 2: Verificar archivos
+        updateLoadingProgress(1);
+        const fileCheck = await checkLocalFiles();
+        
+        if (!fileCheck.bothAvailable) {
+          throw new Error('Faltan archivos JSON requeridos (participantes.json o premios.json)');
         }
         
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('Error al cargar datos:', error);
+        console.log('✅ Archivos JSON verificados correctamente');
+        
+        // Paso 3: Cargar participantes (súper rápido desde JSON)
+        updateLoadingProgress(2);
+        const participantsData = await getParticipants();
+        
+        if (participantsData.length === 0) {
+          throw new Error('No se pudieron cargar los participantes');
+        }
+        
+        setParticipants(participantsData);
+        updateLoadingProgress(2, `✅ ${participantsData.length} participantes cargados`);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Paso 4: Cargar premios (súper rápido desde JSON)
+        updateLoadingProgress(3);
+        const prizesData = await getPrizes();
+        
+        if (prizesData.length === 0) {
+          throw new Error('No se pudieron cargar los premios');
+        }
+        
+        setPrizes(prizesData);
+        const totalUnits = prizesData.reduce((sum, prize) => sum + prize.cantidad, 0);
+        updateLoadingProgress(3, `✅ ${prizesData.length} premios, ${totalUnits} unidades`);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Paso 5: Validar datos
+        updateLoadingProgress(4);
+        const validation = await validateData();
+        
+        if (!validation.isValid) {
+          throw new Error('Los datos cargados no son válidos');
+        }
+        
+        console.log('✅ Datos validados correctamente');
+        updateLoadingProgress(4, '✅ Datos validados correctamente');
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // Paso 6: Precargar imágenes (en paralelo, no bloquea)
+        updateLoadingProgress(5);
+        preloadPrizeImages().catch(err => 
+          console.warn('⚠️ Algunas imágenes no se pudieron precargar:', err)
+        );
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Paso 7: Calcular estadísticas
+        updateLoadingProgress(6);
+        const stats = await getSystemStats();
+        setSystemStats(stats);
+        
+        if (stats) {
+          updateLoadingProgress(6, `📊 Sistema preparado: ${stats.prizes.totalUnits} sorteos programados`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Paso 8: Finalizar
+        updateLoadingProgress(7);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const endTime = Date.now();
+        const totalTime = endTime - startTime;
+        
+        console.log(`🎉 Sistema completamente cargado en ${totalTime}ms`);
+        console.log(`📊 Resumen final:`, {
+          participantes: participantsData.length,
+          premios: prizesData.length,
+          unidadesTotales: totalUnits,
+          tiempoCarga: `${totalTime}ms`
+        });
+        
+        // Finalizar loading
         setIsLoading(false);
+        
+      } catch (error) {
+        console.error('💥 Error crítico cargando sistema:', error);
+        
+        // Mostrar error específico
+        updateLoadingProgress(7, `❌ Error: ${error.message}`);
+        
+        // Mostrar mensaje de error por 3 segundos y luego reintentar
+        setTimeout(() => {
+          updateLoadingProgress(0, '🔄 Reintentando carga del sistema...');
+          // Reiniciar la carga
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }, 3000);
       }
     };
     
     loadData();
   }, []);
 
-  // Manejar selección de premio y comenzar sorteo
+  // Resto de las funciones del componente (sin cambios)
   const handleStartSorteo = (prize) => {
     console.log('🎯 Iniciando sorteo para premio:', prize.name);
     setSelectedPrize(prize);
     setCurrentScreen('sorteo');
   };
 
-  // CORREGIDO: Manejar finalización del sorteo de un premio
   const handleSorteoComplete = (prizeWinners) => {
-    // Agregar SOLO los ganadores reales (no perdedores) a la lista total
     const actualWinners = prizeWinners.filter(winner => winner && winner.participant);
-
     setWinners(prev => [...prev, ...actualWinners]);
     setCompletedPrizes(prev => [...prev, selectedPrize.id]);
     setSelectedPrize(null);
-    setCurrentScreen('prize-selection'); // SIEMPRE volver a selección de premios
+    setCurrentScreen('prize-selection');
   };
 
-  // Reiniciar todo el sorteo
   const handleResetSorteo = () => {
     console.log('🔄 Reiniciando sorteo completo');
     setWinners([]);
@@ -68,7 +186,7 @@ function App() {
     setCurrentScreen('prize-selection');
   };
 
-  // CALCULAR TOTALES CORRECTOS
+  // Calcular totales
   const getTotalExpectedWinners = () => {
     return prizes.reduce((total, prize) => total + prize.cantidad, 0);
   };
@@ -85,74 +203,54 @@ function App() {
     return prizes.length;
   };
 
-  // Debug: Log del estado actual cuando cambia
+  // Mostrar la pantalla de ganadores cuando todos los premios estén sorteados
   useEffect(() => {
-    console.log('📊 Estado actual de la aplicación:', {
-      currentScreen,
-      totalPrizes: getTotalPrizesCount(),
-      prizesIds: prizes.map(p => ({ id: p.id, name: p.name, cantidad: p.cantidad })),
-      completedPrizes: getCompletedPrizesCount(),
-      completedPrizesIds: completedPrizes,
-      totalWinners: getCurrentWinnersCount(),
-      expectedWinners: getTotalExpectedWinners(),
-      winnersDetails: winners.map(w => ({ 
-        name: w.participant?.name, 
-        prize: w.prize?.name,
-        prizeId: w.prize?.id 
-      })),
-      selectedPrize: selectedPrize ? { id: selectedPrize.id, name: selectedPrize.name } : null
-    });
-  }, [currentScreen, prizes, completedPrizes, winners, selectedPrize]);
+    if (!isLoading) {
+      const totalExpectedWinners = getTotalExpectedWinners();
+      const totalCurrentWinners = winners.length;
 
-  // ADICIONAL: Verificar integridad de datos cuando se cargan los premios
-  useEffect(() => {
-    if (prizes.length > 0) {
-      console.log('🎁 Premios cargados:', prizes.map(p => ({
-        id: p.id,
-        name: p.name,
-        cantidad: p.cantidad
-      })));
-      console.log('🎯 Total de premios diferentes:', prizes.length);
-      console.log('🏆 Total de ganadores esperados:', getTotalExpectedWinners());
+      if (
+        totalExpectedWinners > 0 &&
+        totalCurrentWinners >= totalExpectedWinners &&
+        completedPrizes.length === prizes.length
+      ) {
+        setTimeout(() => {
+          setCurrentScreen('winners');
+        }, 800);
+      }
     }
-  }, [prizes]);
+  }, [winners, completedPrizes, prizes, isLoading]);
 
-  // Nuevo efecto para mostrar la pantalla de ganadores SOLO cuando todos los premios estén sorteados
-  useEffect(() => {
-    const totalExpectedWinners = getTotalExpectedWinners();
-    const totalCurrentWinners = winners.length;
-
-    // Verifica que se hayan sorteado todas las unidades de todos los premios
-    if (
-      totalExpectedWinners > 0 &&
-      totalCurrentWinners >= totalExpectedWinners &&
-      completedPrizes.length === prizes.length
-    ) {
-      setTimeout(() => {
-        setCurrentScreen('winners');
-      }, 800);
-    }
-  }, [winners, completedPrizes, prizes]);
-
+  // Mostrar loading mientras se cargan los datos
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <LoadingScreen
+        isLoading={isLoading}
+        currentStep={loadingStep}
+        totalSteps={loadingSteps.length}
+        currentMessage={loadingMessage}
+        progress={loadingProgress}
+      />
+    );
   }
 
   return (
-    <div className="min-h-screen bg-prodispro-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 text-white">
       {/* Header */}
-      <header className="bg-prodispro-gray border-b border-prodispro-blue/30 shadow-lg">
+      <header className="bg-gradient-to-r from-slate-800 via-gray-800 to-slate-800 border-b-2 border-prodispro-blue/30 shadow-xl">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <img src={logoTransparente} alt="Prodispro" className="h-12" />
               <div>
-                <h1 className="text-2xl font-bold text-prodispro-blue">PRODISPRO</h1>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-prodispro-blue to-cyan-400 bg-clip-text text-transparent">
+                  PRODISPRO
+                </h1>
                 <p className="text-sm text-gray-400">Sistema de Sorteos</p>
               </div>
             </div>
             
-            {/* Información del progreso CORREGIDA */}
+            {/* Información del progreso */}
             <div className="hidden md:flex items-center space-x-6">
               <div className="text-center">
                 <div className="text-lg font-bold text-prodispro-blue">
@@ -172,7 +270,6 @@ function App() {
                 </div>
                 <div className="text-xs text-gray-400">Total Esperado</div>
               </div>
-              {/* Mostrar premio actual si está en sorteo */}
               {currentScreen === 'sorteo' && selectedPrize && (
                 <div className="text-center">
                   <div className="text-sm font-bold text-yellow-400">
@@ -206,6 +303,7 @@ function App() {
             participants={participants}
             completedPrizes={completedPrizes}
             onStartSorteo={handleStartSorteo}
+            systemStats={systemStats}
           />
         )}
         
