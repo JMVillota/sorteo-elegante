@@ -533,6 +533,13 @@ body {
   }
 }
 
+/* Nueva regla para pantallas grandes */
+@media (min-width: 1536px) {
+  .xl\:max-w-none {
+    max-width: none !important;
+  }
+}
+
 /* ACCESIBILIDAD */
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer-enhanced,

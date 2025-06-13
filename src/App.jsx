@@ -237,63 +237,61 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 text-white">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-800 via-gray-800 to-slate-800 border-b-2 border-prodispro-blue/30 shadow-xl">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <img src={logoTransparente} alt="Prodispro" className="h-12" />
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-prodispro-blue to-cyan-400 bg-clip-text text-transparent">
-                  PRODISPRO
-                </h1>
-                <p className="text-sm text-gray-400">Sistema de Sorteos</p>
-              </div>
-            </div>
-            
-            {/* Información del progreso */}
-            <div className="hidden md:flex items-center space-x-6">
-              <div className="text-center">
-                <div className="text-lg font-bold text-prodispro-blue">
-                  {getCompletedPrizesCount()}/{getTotalPrizesCount()}
-                </div>
-                <div className="text-xs text-gray-400">Premios Completados</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-green-400">
-                  {getCurrentWinnersCount()}
-                </div>
-                <div className="text-xs text-gray-400">Ganadores Actuales</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-yellow-400">
-                  {getTotalExpectedWinners()}
-                </div>
-                <div className="text-xs text-gray-400">Total Esperado</div>
-              </div>
-              {currentScreen === 'sorteo' && selectedPrize && (
-                <div className="text-center">
-                  <div className="text-sm font-bold text-yellow-400">
-                    {selectedPrize.name}
-                  </div>
-                  <div className="text-xs text-gray-400">Premio Actual</div>
-                </div>
-              )}
-            </div>
-            
-            {currentScreen !== 'prize-selection' && currentScreen !== 'winners' && (
-              <button
-                onClick={() => {
-                  console.log('🔙 Volviendo a selección de premios');
-                  setCurrentScreen('prize-selection');
-                }}
-                className="px-4 py-2 bg-prodispro-blue hover:bg-prodispro-blue/80 rounded-lg transition-colors"
-              >
-                Volver al Inicio
-              </button>
-            )}
-          </div>
+<header className="bg-gradient-to-r from-slate-800 via-gray-800 to-slate-800 border-b-2 border-prodispro-blue/30 shadow-xl">
+  <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-2 sm:space-x-4">
+        <img src={logoTransparente} alt="Prodispro" className="h-8 sm:h-10 md:h-12" />
+        <div className="hidden sm:block">
+          <p className="text-xs sm:text-sm text-gray-400">Sistema de Sorteos</p>
         </div>
-      </header>
+      </div>
+      
+      {/* Información del progreso - Mejorada para móvil */}
+      <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-6">
+        <div className="text-center">
+          <div className="text-sm sm:text-lg font-bold text-prodispro-blue">
+            {getCompletedPrizesCount()}/{getTotalPrizesCount()}
+          </div>
+          <div className="text-xs text-gray-400 hidden sm:block">Premios</div>
+        </div>
+        <div className="text-center">
+          <div className="text-sm sm:text-lg font-bold text-green-400">
+            {getCurrentWinnersCount()}
+          </div>
+          <div className="text-xs text-gray-400 hidden sm:block">Ganadores</div>
+        </div>
+        <div className="text-center">
+          <div className="text-sm sm:text-lg font-bold text-yellow-400">
+            {getTotalExpectedWinners()}
+          </div>
+          <div className="text-xs text-gray-400 hidden sm:block">Total</div>
+        </div>
+        {currentScreen === 'sorteo' && selectedPrize && (
+          <div className="text-center hidden md:block">
+            <div className="text-sm font-bold text-yellow-400 truncate max-w-24">
+              {selectedPrize.name}
+            </div>
+            <div className="text-xs text-gray-400">Premio Actual</div>
+          </div>
+        )}
+      </div>
+      
+      {currentScreen !== 'prize-selection' && currentScreen !== 'winners' && (
+        <button
+          onClick={() => {
+            console.log('🔙 Volviendo a selección de premios');
+            setCurrentScreen('prize-selection');
+          }}
+          className="px-2 sm:px-4 py-1 sm:py-2 bg-prodispro-blue hover:bg-prodispro-blue/80 rounded-lg transition-colors text-xs sm:text-sm"
+        >
+          <span className="hidden sm:inline">Volver al Inicio</span>
+          <span className="sm:hidden">🔙</span>
+        </button>
+      )}
+    </div>
+  </div>
+</header>
 
       {/* Content */}
       <main className="container mx-auto px-4 py-6">
