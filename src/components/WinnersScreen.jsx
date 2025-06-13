@@ -119,7 +119,7 @@ const WinnersScreen = ({ winners, onReset }) => {
    <head>
      <meta charset="UTF-8">
      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <title>Ganadores Sorteo PRODISPRO 2025</title>
+     <title>GANADORES DEL SORTEO DE MES DE MAYO PRODISPRO 2025</title>
      <style>
        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
        
