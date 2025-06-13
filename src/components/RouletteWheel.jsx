@@ -472,8 +472,9 @@ const RouletteWheel = ({
             <div ref={reel1Ref} className="absolute inset-0 w-full">
               <div className="reel-item w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray">
                 <div 
-                  className="symbol-value font-bold text-prodispro-blue leading-tight" 
-                  style={{ fontSize: 'clamp(1.2rem, 6vw, 3.5rem)' }} // Cambiado para que siempre quepa
+                  className="symbol-value font-bold text-prodispro-blue leading-tight text-center select-none
+    text-lg sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 2.2rem)' }}
                 >
                   FC
                 </div>
@@ -486,8 +487,9 @@ const RouletteWheel = ({
             <div ref={reel2Ref} className="absolute inset-0 w-full">
               <div className="reel-item w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray">
                 <div 
-                  className="symbol-value font-bold text-prodispro-blue leading-tight" 
-                  style={{ fontSize: 'clamp(1.2rem, 6vw, 3.5rem)' }} // Cambiado para que siempre quepa
+                  className="symbol-value font-bold text-prodispro-blue leading-tight text-center select-none
+    text-lg sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 2.2rem)' }}
                 >
                   0000
                 </div>
@@ -500,8 +502,9 @@ const RouletteWheel = ({
             <div ref={reel3Ref} className="absolute inset-0 w-full">
               <div className="reel-item w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray">
                 <div 
-                  className="symbol-value font-bold text-prodispro-blue leading-tight text-center" 
-                  style={{ fontSize: 'clamp(1.2rem, 6vw, 3.5rem)' }} // Cambiado para que siempre quepa
+                  className="symbol-value font-bold text-prodispro-blue leading-tight text-center select-none
+    text-lg sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl"
+                  style={{ fontSize: 'clamp(1rem, 4vw, 2.2rem)' }}
                 >
                   000000
                 </div>
