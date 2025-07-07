@@ -75,7 +75,7 @@ const PrizeSelectionScreen = ({ prizes, participants, completedPrizes, onStartSo
             <div className="text-xl sm:text-2xl md:text-3xl font-bold text-cyan-400 mb-1">
               {systemStats.participants.citiesCount}
             </div>
-            <div className="text-xs sm:text-sm text-gray-400">Ciudades</div>
+            <div className="text-xs sm:text-sm text-gray-400">Cantón</div>
           </div>
         </div>
       )}
