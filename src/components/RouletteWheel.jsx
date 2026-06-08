@@ -426,14 +426,14 @@ const RouletteWheel = ({
       </div>
 
       {/* Máquina tragamonedas - RESPONSIVA COMPLETA */}
-      <div className="relative w-full xl:max-w-6xl 2xl:max-w-7xl mx-auto border-2 sm:border-4 md:border-8 border-prodispro-blue rounded-lg md:rounded-xl bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray mb-4 md:mb-6 shadow-lg sm:shadow-xl md:shadow-[0_0_30px_rgba(1,155,220,0.4)]">
+      <div
+        onClick={() => { if (!isSpinning && !isActive) spinReels(); }}
+        className={`relative w-full xl:max-w-6xl 2xl:max-w-7xl mx-auto border-2 sm:border-4 md:border-8 border-prodispro-blue rounded-lg md:rounded-xl bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray mb-4 md:mb-6 shadow-lg sm:shadow-xl md:shadow-[0_0_30px_rgba(1,155,220,0.4)] ${!isSpinning && !isActive ? 'cursor-pointer' : 'cursor-default'}`}
+      >
         
         {/* Header */}
-        <div className="w-full h-8 sm:h-10 md:h-12 lg:h-16 bg-gradient-to-b from-prodispro-blue to-prodispro-blue/80 flex items-center justify-center relative">
-          <div className="text-xs sm:text-sm md:text-base lg:text-xl font-bold text-white text-center tracking-wider drop-shadow-lg">
-            SISTEMA DE SORTEOS
-          </div>
-          <div className="absolute top-1 md:top-2 left-0 right-0 flex justify-between px-2 md:px-3">
+        <div className="w-full h-8 sm:h-10 md:h-12 lg:h-16 bg-gradient-to-b from-prodispro-blue to-prodispro-blue/80 flex items-center justify-center relative overflow-hidden">
+          <div className="absolute top-1 md:top-2 left-0 right-0 flex justify-between px-2 md:px-3 z-10">
             {[0, 1, 2, 3, 4, 5, 6].map(i => (
               <div
                 key={`top-light-${i}`}
@@ -444,6 +444,11 @@ const RouletteWheel = ({
                 }}
               ></div>
             ))}
+          </div>
+          <div className="marquee-container w-full overflow-hidden">
+            <div className="marquee-track whitespace-nowrap text-xs sm:text-sm md:text-base lg:text-xl font-bold text-white tracking-wider drop-shadow-lg">
+              {Array(6).fill('Prodispro Cia. Ltda. · No ser los más grandes pero sí los mejores · ').join('')}
+            </div>
           </div>
         </div>
 
@@ -514,8 +519,8 @@ const RouletteWheel = ({
         </div>
 
         {/* Footer */}
-        <div className="w-full h-6 sm:h-8 md:h-10 lg:h-12 bg-gradient-to-b from-prodispro-blue/80 to-prodispro-blue flex items-center justify-center relative">
-          <div className="absolute bottom-1 md:bottom-2 left-0 right-0 flex justify-between px-2 md:px-3">
+        <div className="w-full h-6 sm:h-8 md:h-10 lg:h-12 bg-gradient-to-b from-prodispro-blue/80 to-prodispro-blue flex items-center justify-center relative overflow-hidden">
+          <div className="absolute bottom-1 md:bottom-2 left-0 right-0 flex justify-between px-2 md:px-3 z-10">
             {[0, 1, 2, 3, 4, 5, 6].map(i => (
               <div
                 key={`bottom-light-${i}`}
@@ -527,8 +532,10 @@ const RouletteWheel = ({
               ></div>
             ))}
           </div>
-          <div className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-white text-center mx-4 md:mx-8">
-            PRODISPRO 2025
+          <div className="marquee-container w-full overflow-hidden">
+            <div className="marquee-track marquee-reverse whitespace-nowrap text-xs sm:text-sm md:text-base lg:text-lg font-bold text-white tracking-wider drop-shadow-lg">
+              {Array(6).fill('PRODISPRO 2025 · Sistema de Sorteos · ').join('')}
+            </div>
           </div>
         </div>
 
@@ -617,12 +624,37 @@ const RouletteWheel = ({
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
         }
-        
+
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(0.8); }
         }
-        
+
+        @keyframes marquee {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+
+        @keyframes marquee-reverse {
+          0%   { transform: translateX(-50%); }
+          100% { transform: translateX(0); }
+        }
+
+        .marquee-container {
+          display: flex;
+          align-items: center;
+          height: 100%;
+        }
+
+        .marquee-track {
+          display: inline-block;
+          animation: marquee 18s linear infinite;
+        }
+
+        .marquee-reverse {
+          animation: marquee-reverse 22s linear infinite;
+        }
+
         .shadow-glow {
           filter: drop-shadow(0 0 2px rgba(1, 155, 220, 0.7));
         }

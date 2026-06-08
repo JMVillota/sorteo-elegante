@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   base: './', // Para rutas relativas
   server: {
-    host: '192.168.1.20',
+    host: 'localhost',
     port: 5173,
   },
 });

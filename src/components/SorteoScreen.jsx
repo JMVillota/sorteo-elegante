@@ -3,54 +3,36 @@ import React, { useState, useEffect } from 'react';
 import RouletteWheel from './RouletteWheel';
 import WinnerModal from './WinnerModal';
 
-const SorteoScreen = ({ prize, participants, onComplete }) => {
-  const [currentRound, setCurrentRound] = useState(1);
-  const [roundWinners, setRoundWinners] = useState([]);
+// SorteoScreen maneja UNA sola unidad (3 rondas: eliminado, eliminado, ganador)
+// currentUnit: número de unidad actual (1-based), onUnitComplete: callback al terminar la unidad
+const SorteoScreen = ({ prize, participants, zoneName, currentUnit, onUnitComplete }) => {
+  const [currentRound, setCurrentRound] = useState(1); // 1, 2 o 3
   const [roundLosers, setRoundLosers] = useState([]);
   const [isRoundActive, setIsRoundActive] = useState(false);
   const [currentWinner, setCurrentWinner] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const [unitWinner, setUnitWinner] = useState(null);
 
-  const totalRounds = prize.cantidad * 3;
-  const isWinnerRound = currentRound % 3 === 0;
-
-  useEffect(() => {
-    if (roundWinners.length >= prize.cantidad && currentRound > totalRounds) {
-      console.log(`✅ Sorteo completado para ${prize.name}`);
-      onComplete(roundWinners);
-      return;
-    }
-  }, [currentRound, totalRounds, roundWinners, prize.cantidad, prize.name, onComplete]);
+  const totalRounds = 3; // siempre 3 rondas por unidad
+  const isWinnerRound = currentRound === 3;
 
   const handleRoundComplete = (selectedParticipant) => {
-    console.log(`🎲 Ronda ${currentRound} completada:`, {
-      participant: selectedParticipant.name,
-      isWinnerRound,
-      expectedUnit: Math.ceil(currentRound / 3)
-    });
-
     setCurrentWinner(selectedParticipant);
     setShowResult(true);
-    
+
     if (isWinnerRound) {
-      const newWinner = {
+      const winner = {
         participant: selectedParticipant,
         prize: prize,
         round: currentRound,
-        unit: Math.ceil(currentRound / 3)
+        unit: currentUnit
       };
-      
-      setRoundWinners([...roundWinners, newWinner]);
+      setUnitWinner(winner);
     } else {
-      const newLoser = {
-        participant: selectedParticipant,
-        round: currentRound
-      };
-      
-      setRoundLosers([...roundLosers, newLoser]);
+      setRoundLosers(prev => [...prev, { participant: selectedParticipant, round: currentRound }]);
     }
-    
+
     setTimeout(() => {
       setShowWinnerModal(true);
     }, 1000);
@@ -60,12 +42,17 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
     setShowResult(false);
     setCurrentWinner(null);
     setShowWinnerModal(false);
-    setCurrentRound(currentRound + 1);
     setIsRoundActive(false);
+
+    if (isWinnerRound && unitWinner) {
+      // Unidad terminada — avisar al padre
+      onUnitComplete(unitWinner);
+    } else {
+      setCurrentRound(prev => prev + 1);
+    }
   };
 
   const handleModalContinue = () => {
-    console.log('👆 Usuario continuó desde modal');
     continueToNextRound();
   };
 
@@ -92,8 +79,6 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
     return "🎁";
   };
 
-  const getCurrentUnit = () => Math.ceil(currentRound / 3);
-  const getRoundInUnit = () => ((currentRound - 1) % 3) + 1;
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 overflow-hidden">
@@ -103,7 +88,8 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
         isOpen={showWinnerModal}
         winner={currentWinner}
         prize={prize}
-        unit={getCurrentUnit()}
+        unit={currentUnit}
+        totalUnits={prize.cantidad}
         onContinue={handleModalContinue}
         isWinnerRound={isWinnerRound}
       />
@@ -126,7 +112,7 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
                   </div>
                 )}
                 <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 bg-gradient-to-r from-prodispro-blue to-cyan-400 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg">
-                  {getCurrentUnit()}
+                  {currentUnit}
                 </div>
               </div>
               <div className="min-w-0 flex-1">
@@ -134,8 +120,9 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
                   {prize.name}
                 </h1>
                 <p className="text-xs sm:text-base md:text-lg lg:text-xl text-gray-300 mb-1">
-                  Unidad {getCurrentUnit()} de {prize.cantidad} • 
-                  Ronda {getRoundInUnit()} de 3
+                  Unidad {currentUnit} de {prize.cantidad} •
+                  Ronda {currentRound} de 3
+                  {zoneName && <span className="text-cyan-300"> • {zoneName}</span>}
                 </p>
                 <div className={`inline-block px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-bold ${
                   isWinnerRound 
@@ -229,45 +216,36 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
             </div>
           </div>
 
-          {/* Ganadores */}
+          {/* Ganador de esta unidad */}
           <div className="col-span-1 bg-gradient-to-br from-emerald-900/30 to-green-900/30 rounded-3xl p-6 flex flex-col min-h-0 border border-emerald-500/30 shadow-xl w-full h-full">
             <div className="flex items-center justify-center mb-6 flex-shrink-0">
               <div className="bg-gradient-to-r from-emerald-500 to-green-500 px-6 py-3 rounded-2xl">
                 <h3 className="text-xl font-bold text-white text-center">
-                  🏆 GANADORES ({roundWinners.length}/{prize.cantidad})
+                  🏆 GANADOR UNIDAD {currentUnit}
                 </h3>
               </div>
             </div>
-            
-            <div className="flex-1 overflow-y-auto pr-2 min-h-0 custom-scrollbar">
-              <div className="space-y-4">
-                {roundWinners.length === 0 ? (
-                  <div className="text-center text-gray-400 py-12">
-                    <div className="text-6xl mb-4 animate-pulse">🎯</div>
-                    <p className="text-xl">Sin ganadores aún</p>
-                  </div>
-                ) : (
-                  roundWinners.map((winner, index) => (
-                    <div key={index} className="p-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-400/30 rounded-xl relative overflow-hidden hover:from-emerald-500/20 hover:to-green-500/20 transition-all duration-300">
-                      <div className="flex items-center space-x-4 relative z-10">
-                        <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-lg">
-                          {winner.participant.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-lg truncate text-white">{winner.participant.name}</h4>
-                          <p className="text-emerald-300 text-sm">
-                            {winner.participant.invoiceNumber} • U{winner.unit}
-                          </p>
-                          <p className="text-sm text-gray-400 truncate">
-                            {winner.participant.ciudad}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/20 to-emerald-400/0 animate-shimmer" />
+            <div className="flex-1 flex items-center justify-center">
+              {!unitWinner ? (
+                <div className="text-center text-gray-400 py-12">
+                  <div className="text-6xl mb-4 animate-pulse">🎯</div>
+                  <p className="text-xl">Pendiente</p>
+                </div>
+              ) : (
+                <div className="p-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-400/30 rounded-xl relative overflow-hidden w-full">
+                  <div className="flex items-center space-x-4 relative z-10">
+                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-lg">
+                      {unitWinner.participant.name.charAt(0)}
                     </div>
-                  ))
-                )}
-              </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-lg truncate text-white">{unitWinner.participant.name}</h4>
+                      <p className="text-emerald-300 text-sm">{unitWinner.participant.invoiceNumber}</p>
+                      <p className="text-sm text-gray-400 truncate">{unitWinner.participant.ciudad}</p>
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/20 to-emerald-400/0 animate-shimmer" />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -291,45 +269,36 @@ const SorteoScreen = ({ prize, participants, onComplete }) => {
           {/* Grid de Ganadores y Eliminados */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             
-            {/* Ganadores */}
+            {/* Ganador de esta unidad */}
             <div className="bg-gradient-to-br from-emerald-900/30 to-green-900/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-emerald-500/30 shadow-xl">
               <div className="flex items-center justify-center mb-4 sm:mb-6">
                 <div className="bg-gradient-to-r from-emerald-500 to-green-500 px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl">
                   <h3 className="text-sm sm:text-base md:text-lg font-bold text-white text-center">
-                    🏆 GANADORES ({roundWinners.length}/{prize.cantidad})
+                    🏆 GANADOR U{currentUnit}
                   </h3>
                 </div>
               </div>
-              
-              <div className="max-h-48 sm:max-h-64 md:max-h-80 overflow-y-auto custom-scrollbar">
-                <div className="space-y-3">
-                  {roundWinners.length === 0 ? (
-                    <div className="text-center text-gray-400 py-8">
-                      <div className="text-3xl sm:text-4xl mb-2">🎯</div>
-                      <p className="text-sm">Sin ganadores aún</p>
-                    </div>
-                  ) : (
-                    roundWinners.map((winner, index) => (
-                      <div key={index} className="p-3 sm:p-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-400/30 rounded-lg sm:rounded-xl relative overflow-hidden">
-                        <div className="flex items-center space-x-3 relative z-10">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center text-sm font-bold text-white">
-                            {winner.participant.name.charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium sm:font-semibold truncate text-white text-sm sm:text-base">{winner.participant.name}</h4>
-                            <p className="text-emerald-300 text-xs sm:text-sm">
-                              {winner.participant.invoiceNumber} • U{winner.unit}
-                            </p>
-                            <p className="text-xs text-gray-400 truncate">
-                              {winner.participant.ciudad}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/10 to-emerald-400/0 animate-shimmer" />
+              <div className="flex items-center justify-center">
+                {!unitWinner ? (
+                  <div className="text-center text-gray-400 py-8">
+                    <div className="text-3xl sm:text-4xl mb-2">🎯</div>
+                    <p className="text-sm">Pendiente</p>
+                  </div>
+                ) : (
+                  <div className="p-3 sm:p-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-400/30 rounded-lg sm:rounded-xl relative overflow-hidden w-full">
+                    <div className="flex items-center space-x-3 relative z-10">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center text-sm font-bold text-white">
+                        {unitWinner.participant.name.charAt(0)}
                       </div>
-                    ))
-                  )}
-                </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium sm:font-semibold truncate text-white text-sm sm:text-base">{unitWinner.participant.name}</h4>
+                        <p className="text-emerald-300 text-xs sm:text-sm">{unitWinner.participant.invoiceNumber}</p>
+                        <p className="text-xs text-gray-400 truncate">{unitWinner.participant.ciudad}</p>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/10 to-emerald-400/0 animate-shimmer" />
+                  </div>
+                )}
               </div>
             </div>{/* Eliminados */}
             <div className="bg-gradient-to-br from-red-900/30 to-rose-900/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-red-500/30 shadow-xl">

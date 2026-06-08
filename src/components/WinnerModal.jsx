@@ -3,13 +3,14 @@ import React, { useEffect, useState } from 'react';
 import Confetti from 'react-confetti';
 import useWindowSize from '../hooks/useWindowSize';
 
-const WinnerModal = ({ 
-  isOpen, 
-  winner, 
-  prize, 
-  unit, 
-  onContinue, 
-  isWinnerRound = true 
+const WinnerModal = ({
+  isOpen,
+  winner,
+  prize,
+  unit,
+  totalUnits,
+  onContinue,
+  isWinnerRound = true
 }) => {
   const { width, height } = useWindowSize();
   const [showConfetti, setShowConfetti] = useState(false);
@@ -144,9 +145,15 @@ const WinnerModal = ({
                     <p className="text-slate-300 text-xs sm:text-base">
                       Unidad {unit} de {prize.cantidad}
                     </p>
-                    <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                      ¡Has ganado este increíble premio!
-                    </p>
+                    {totalUnits && unit < totalUnits ? (
+                      <p className="text-xs sm:text-sm text-yellow-400 font-semibold mt-1">
+                        ⚡ Quedan {totalUnits - unit} unidad{totalUnits - unit > 1 ? 'es' : ''} más de este premio
+                      </p>
+                    ) : (
+                      <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                        ¡Última unidad del premio!
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -177,7 +184,11 @@ const WinnerModal = ({
               <span className="text-xl sm:text-2xl animate-bounce">
                 {isWinnerRound ? '🎯' : '👍'}
               </span>
-              <span>{isWinnerRound ? 'Continuar' : 'Seguir participando'}</span>
+              <span>
+                {isWinnerRound
+                  ? (totalUnits && unit < totalUnits ? `Sortear unidad ${unit + 1}` : 'Continuar')
+                  : 'Seguir participando'}
+              </span>
               <span className="text-xl sm:text-2xl animate-bounce" style={{ animationDelay: '0.2s' }}>
                 {isWinnerRound ? '🎉' : '🔥'}
               </span>
@@ -185,9 +196,11 @@ const WinnerModal = ({
 
             <div className="text-center mt-2 sm:mt-4">
               <p className="text-xs sm:text-sm text-slate-400">
-                {isWinnerRound 
-                  ? 'Presiona para continuar al siguiente sorteo' 
-                  : 'Presiona para continuar con el sorteo'}
+                {isWinnerRound
+                  ? (totalUnits && unit < totalUnits
+                      ? `Presiona para sortear la unidad ${unit + 1} de ${totalUnits}`
+                      : 'Presiona para finalizar este premio')
+                  : 'Presiona para continuar con la siguiente ronda'}
               </p>
             </div>
           </div>

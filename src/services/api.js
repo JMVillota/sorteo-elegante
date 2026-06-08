@@ -33,7 +33,11 @@ export const getParticipants = async () => {
       telefono: participant.Telefono,
       parroquia: participant.Parroquia,
       zona: participant.Zona,
-      codigo: participant.Codigo
+      codigo: participant.Codigo,
+      codigoProvincia: participant.CodigoProvincia,
+      provincia: participant.Provincia,
+      codigoSPV: participant.Codigo_SPV,
+      supervisor: participant.Supervisor
     }));
     
     console.log(`✅ Datos procesados: ${processedData.length} participantes válidos`);

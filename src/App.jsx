@@ -10,6 +10,7 @@ import {
 } from './services/api';
 import LoadingScreen from './components/LoadingScreen';
 import PrizeSelectionScreen from './components/PrizeSelectionScreen';
+import ZoneSelectionScreen from './components/ZoneSelectionScreen';
 import SorteoScreen from './components/SorteoScreen';
 import WinnersScreen from './components/WinnersScreen';
 import logoTransparente from './assets/logo-transparente.png';
@@ -21,6 +22,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('prize-selection');
   const [selectedPrize, setSelectedPrize] = useState(null);
+  const [selectedZoneParticipants, setSelectedZoneParticipants] = useState(null);
+  const [selectedZoneName, setSelectedZoneName] = useState(null);
+  const [currentUnit, setCurrentUnit] = useState(1);      // unidad actual del premio en curso
+  const [accumulatedWinners, setAccumulatedWinners] = useState([]); // ganadores del premio en curso
   const [completedPrizes, setCompletedPrizes] = useState([]);
   const [systemStats, setSystemStats] = useState(null);
 
@@ -165,17 +170,53 @@ function App() {
 
   // Resto de las funciones del componente (sin cambios)
   const handleStartSorteo = (prize) => {
-    console.log('🎯 Iniciando sorteo para premio:', prize.name);
+    console.log('🎯 Premio seleccionado, eligiendo zona para unidad 1:', prize.name);
     setSelectedPrize(prize);
+    setCurrentUnit(1);
+    setAccumulatedWinners([]);
+    setCurrentScreen('zone-selection');
+  };
+
+  const handleZoneConfirm = (zoneParticipants, zoneName) => {
+    console.log(`🗺️ Zona "${zoneName}" seleccionada — unidad ${currentUnit}`);
+    setSelectedZoneParticipants(zoneParticipants);
+    setSelectedZoneName(zoneName);
     setCurrentScreen('sorteo');
   };
 
-  const handleSorteoComplete = (prizeWinners) => {
-    const actualWinners = prizeWinners.filter(winner => winner && winner.participant);
-    setWinners(prev => [...prev, ...actualWinners]);
-    setCompletedPrizes(prev => [...prev, selectedPrize.id]);
-    setSelectedPrize(null);
+  const handleZoneBack = () => {
+    setSelectedZoneParticipants(null);
+    setSelectedZoneName(null);
+    // Si ya hay ganadores acumulados (venimos de una unidad intermedia), volver a selección de premios
+    setCurrentUnit(1);
+    setAccumulatedWinners([]);
     setCurrentScreen('prize-selection');
+  };
+
+  // Se llama cuando termina UNA unidad del premio (ronda ganadora completada)
+  const handleUnitComplete = (unitWinner) => {
+    const newAccumulated = [...accumulatedWinners, unitWinner];
+    setAccumulatedWinners(newAccumulated);
+
+    const nextUnit = currentUnit + 1;
+
+    if (nextUnit > selectedPrize.cantidad) {
+      // Todas las unidades completadas → registrar ganadores y volver al inicio
+      setWinners(prev => [...prev, ...newAccumulated]);
+      setCompletedPrizes(prev => [...prev, selectedPrize.id]);
+      setSelectedPrize(null);
+      setSelectedZoneParticipants(null);
+      setSelectedZoneName(null);
+      setCurrentUnit(1);
+      setAccumulatedWinners([]);
+      setCurrentScreen('prize-selection');
+    } else {
+      // Quedan más unidades → pedir zona para la siguiente
+      setCurrentUnit(nextUnit);
+      setSelectedZoneParticipants(null);
+      setSelectedZoneName(null);
+      setCurrentScreen('zone-selection');
+    }
   };
 
   const handleResetSorteo = () => {
@@ -183,6 +224,10 @@ function App() {
     setWinners([]);
     setCompletedPrizes([]);
     setSelectedPrize(null);
+    setSelectedZoneParticipants(null);
+    setSelectedZoneName(null);
+    setCurrentUnit(1);
+    setAccumulatedWinners([]);
     setCurrentScreen('prize-selection');
   };
 
@@ -275,12 +320,22 @@ function App() {
             <div className="text-xs text-gray-400">Premio Actual</div>
           </div>
         )}
+        {currentScreen === 'sorteo' && selectedZoneName && (
+          <div className="text-center hidden lg:block">
+            <div className="text-sm font-bold text-cyan-300 truncate max-w-28">
+              {selectedZoneName}
+            </div>
+            <div className="text-xs text-gray-400">Zona</div>
+          </div>
+        )}
       </div>
       
       {currentScreen !== 'prize-selection' && currentScreen !== 'winners' && (
         <button
           onClick={() => {
             console.log('🔙 Volviendo a selección de premios');
+            setSelectedZoneParticipants(null);
+            setSelectedZoneName(null);
             setCurrentScreen('prize-selection');
           }}
           className="px-2 sm:px-4 py-1 sm:py-2 bg-prodispro-blue hover:bg-prodispro-blue/80 rounded-lg transition-colors text-xs sm:text-sm"
@@ -304,12 +359,24 @@ function App() {
             systemStats={systemStats}
           />
         )}
-        
-        {currentScreen === 'sorteo' && selectedPrize && (
-          <SorteoScreen
+
+        {currentScreen === 'zone-selection' && selectedPrize && (
+          <ZoneSelectionScreen
             prize={selectedPrize}
             participants={participants}
-            onComplete={handleSorteoComplete}
+            currentUnit={currentUnit}
+            onConfirm={handleZoneConfirm}
+            onBack={handleZoneBack}
+          />
+        )}
+
+        {currentScreen === 'sorteo' && selectedPrize && selectedZoneParticipants && (
+          <SorteoScreen
+            prize={selectedPrize}
+            participants={selectedZoneParticipants}
+            zoneName={selectedZoneName}
+            currentUnit={currentUnit}
+            onUnitComplete={handleUnitComplete}
           />
         )}
         
