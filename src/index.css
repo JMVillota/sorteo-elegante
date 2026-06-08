@@ -669,6 +669,22 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* HEADER PILLS */
+.header-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid transparent;
+}
+.header-pill--blue   { background: rgba(1,155,220,0.12);  border-color: rgba(1,155,220,0.25);  color: #7dd3fc; }
+.header-pill--green  { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.25); color: #6ee7b7; }
+.header-pill--amber  { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.25); color: #fcd34d; }
+.header-pill--purple { background: rgba(167,139,250,0.12);border-color: rgba(167,139,250,0.25);color: #c4b5fd; }
+.header-pill--cyan   { background: rgba(34,211,238,0.12); border-color: rgba(34,211,238,0.25); color: #67e8f9; }
+
 /* FIX PARA WEBKIT */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,

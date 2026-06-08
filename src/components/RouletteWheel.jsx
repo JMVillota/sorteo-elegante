@@ -4,6 +4,8 @@ import { gsap } from 'gsap';
 import { Howl } from 'howler';
 import Confetti from 'react-confetti';
 import useWindowSize from '../hooks/useWindowSize';
+import logoProdispro from '../assets/logo-prodispro.svg';
+import iconProdispro from '../assets/images/icon.png';
 
 const RouletteWheel = ({
   participants,
@@ -12,7 +14,9 @@ const RouletteWheel = ({
   onStart,
   showResult,
   currentWinner,
-  isWinnerRound
+  isWinnerRound,
+  compact = false,
+  onParticipantChange = null
 }) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [displayParticipant, setDisplayParticipant] = useState(null);
@@ -34,6 +38,7 @@ const RouletteWheel = ({
   const audioRef = useRef(null);
   const winnerSoundTimeoutRef = useRef(null);
   const confettiTimeoutRef = useRef(null);
+  const isWinnerRoundRef = useRef(isWinnerRound);
 
   const SPIN_DURATION = 9.5;
   const WINNER_SOUND_DURATION = 5;
@@ -99,6 +104,7 @@ const RouletteWheel = ({
     setResultShown(false);
     setDisplayParticipant(null);
     setShowConfetti(false);
+    if (onParticipantChange) onParticipantChange(null);
 
     if (winnerSoundTimeoutRef.current) {
       clearTimeout(winnerSoundTimeoutRef.current);
@@ -108,6 +114,7 @@ const RouletteWheel = ({
       clearTimeout(confettiTimeoutRef.current);
       confettiTimeoutRef.current = null;
     }
+    isWinnerRoundRef.current = isWinnerRound;
   }, [isWinnerRound]);
 
   const generateSlotSymbols = () => ({
@@ -270,6 +277,7 @@ const RouletteWheel = ({
       const participantInterval = setInterval(() => {
         const randomParticipant = participants[Math.floor(Math.random() * participants.length)];
         setDisplayParticipant(randomParticipant);
+        if (onParticipantChange) onParticipantChange(randomParticipant);
 
         if (nameDisplayRef.current) {
           gsap.fromTo(nameDisplayRef.current,
@@ -295,22 +303,43 @@ const RouletteWheel = ({
           delay,
           ease: "power2.inOut",
           onComplete: () => {
-            const centerItem = reelRef.current.querySelector('.reel-item');
-            if (centerItem) {
-              const valueElement = centerItem.querySelector('.symbol-value');
-              if (valueElement) {
-                valueElement.textContent = finalValue;
-                
-                gsap.to(centerItem, {
-                  backgroundColor: isWinnerRound ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-                  boxShadow: `0 0 20px ${isWinnerRound ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)'} inset`,
-                  duration: 0.5
-                });
-              }
-            }
-            
             gsap.set(reelRef.current, { rotationY: 0 });
             applyReelEffects(reelRef);
+
+            const centerItem = reelRef.current.querySelector('.reel-item');
+            if (!centerItem) return;
+            const circle     = centerItem.querySelector('.symbol-circle');
+            const iconEl     = centerItem.querySelector('.symbol-icon');
+            const valueEl    = centerItem.querySelector('.symbol-value');
+            if (!circle || !iconEl || !valueEl) return;
+
+            // Volteo: primera mitad oculta (rotY 0→90), swap, segunda mitad revela (rotY -90→0)
+            gsap.to(circle, {
+              rotationY: 90,
+              duration: 0.22,
+              ease: 'power2.in',
+              onComplete: () => {
+                // swap: ocultar icono, mostrar número
+                iconEl.classList.add('hidden');
+                valueEl.textContent = finalValue;
+                valueEl.classList.remove('hidden');
+
+                // color del círculo según resultado — leer ref para valor siempre actual
+                const winner = isWinnerRoundRef.current;
+                circle.style.background = winner
+                  ? 'linear-gradient(135deg,#d1fae5,#6ee7b7)'
+                  : 'linear-gradient(135deg,#fee2e2,#fca5a5)';
+                circle.style.boxShadow = winner
+                  ? '0 4px 20px rgba(16,185,129,0.5), 0 0 0 3px rgba(16,185,129,0.3)'
+                  : '0 4px 20px rgba(239,68,68,0.5), 0 0 0 3px rgba(239,68,68,0.3)';
+
+                // segunda mitad: revelar
+                gsap.fromTo(circle,
+                  { rotationY: -90 },
+                  { rotationY: 0, duration: 0.28, ease: 'power2.out' }
+                );
+              }
+            });
           }
         });
 
@@ -326,6 +355,7 @@ const RouletteWheel = ({
       tl.call(() => {
         clearInterval(participantInterval);
         setDisplayParticipant(selectedWinner);
+        if (onParticipantChange) onParticipantChange(selectedWinner);
 
         setTimeout(() => {
           if (audioRef.current?.slotSpin && audioRef.current.slotSpin.playing()) {
@@ -364,7 +394,7 @@ const RouletteWheel = ({
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center relative">
+    <div className={`relative ${compact ? 'w-full h-full flex flex-col' : 'w-full flex flex-col items-center justify-center'}`}>
       {showConfetti && isWinnerRound && (
         <Confetti
           width={width}
@@ -375,8 +405,8 @@ const RouletteWheel = ({
         />
       )}
 
-      {/* Información del participante - ALTURA FIJA RESPONSIVA */}
-      <div className="text-center mb-3 sm:mb-4 md:mb-6 w-full px-2 sm:px-4">
+      {/* Información del participante */}
+      <div className={`text-center mb-3 w-full px-2 ${compact ? 'hidden' : ''}`}>
         <div
           ref={nameDisplayRef}
           className={`relative bg-slate-800/90 px-3 sm:px-4 md:px-6 py-3 sm:py-4 rounded-lg sm:rounded-xl md:rounded-2xl border-2 transition-all duration-200 backdrop-blur-sm w-full ${
@@ -428,7 +458,7 @@ const RouletteWheel = ({
       {/* Máquina tragamonedas - RESPONSIVA COMPLETA */}
       <div
         onClick={() => { if (!isSpinning && !isActive) spinReels(); }}
-        className={`relative w-full xl:max-w-6xl 2xl:max-w-7xl mx-auto border-2 sm:border-4 md:border-8 border-prodispro-blue rounded-lg md:rounded-xl bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray mb-4 md:mb-6 shadow-lg sm:shadow-xl md:shadow-[0_0_30px_rgba(1,155,220,0.4)] ${!isSpinning && !isActive ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`relative border-2 border-prodispro-blue rounded-xl bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray shadow-[0_0_30px_rgba(1,155,220,0.4)] ${compact ? 'w-full h-full flex flex-col' : 'w-full max-w-2xl mx-auto mb-2'} ${!isSpinning && !isActive ? 'cursor-pointer' : 'cursor-default'}`}
       >
         
         {/* Header */}
@@ -452,15 +482,21 @@ const RouletteWheel = ({
           </div>
         </div>
 
-        {/* Área principal de rodillos - ALTURA DINÁMICA */}
-        <div 
-          className="w-full bg-black flex relative"
-          style={{ 
-            height: 'clamp(180px, 32vw, 420px)' // Altura más grande en pantallas grandes
-          }}
+        {/* Área principal de rodillos */}
+        <div
+          className={`w-full bg-black flex relative ${compact ? 'flex-1 min-h-0' : ''}`}
+          style={compact ? {} : { height: 'clamp(180px, 32vw, 420px)' }}
         >
-          
-          <div 
+          {/* Logo SVG — fondo estático tenue, siempre */}
+          <img
+            src={logoProdispro}
+            alt="" aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+            style={{ zIndex: 0, padding: '8%', opacity: 0.12 }}
+          />
+
+
+          <div
             className={`win-line absolute left-0 right-0 z-10 pointer-events-none opacity-0 ${
               isWinnerRound ? 'border-green-500 bg-green-500/10' : 'border-red-500 bg-red-500/10'
             }`}
@@ -473,45 +509,36 @@ const RouletteWheel = ({
           ></div>
 
           {/* Rodillo 1 */}
-          <div className="flex-1 h-full relative overflow-hidden border-r-2 border-prodispro-blue">
+          <div className="flex-1 h-full relative overflow-hidden border-r-2 border-prodispro-blue" style={{zIndex:1}}>
             <div ref={reel1Ref} className="absolute inset-0 w-full">
               <div className="reel-item w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray">
-                <div 
-                  className="symbol-value font-bold text-prodispro-blue leading-tight text-center select-none
-    text-lg sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl"
-                  style={{ fontSize: 'clamp(1rem, 4vw, 2.2rem)' }}
-                >
-                  FC
+                <div className="symbol-circle">
+                  <img src={iconProdispro} alt="" className={`symbol-icon${showResult ? ' hidden' : ''}`} />
+                  <span className={`symbol-value${showResult ? '' : ' hidden'}`}>FC</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Rodillo 2 */}
-          <div className="flex-1 h-full relative overflow-hidden border-r-2 border-prodispro-blue">
+          <div className="flex-1 h-full relative overflow-hidden border-r-2 border-prodispro-blue" style={{zIndex:1}}>
             <div ref={reel2Ref} className="absolute inset-0 w-full">
               <div className="reel-item w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray">
-                <div 
-                  className="symbol-value font-bold text-prodispro-blue leading-tight text-center select-none
-    text-lg sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl"
-                  style={{ fontSize: 'clamp(1rem, 4vw, 2.2rem)' }}
-                >
-                  0000
+                <div className="symbol-circle">
+                  <img src={iconProdispro} alt="" className={`symbol-icon${showResult ? ' hidden' : ''}`} />
+                  <span className={`symbol-value${showResult ? '' : ' hidden'}`}>0000</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Rodillo 3 */}
-          <div className="flex-1 h-full relative overflow-hidden">
+          <div className="flex-1 h-full relative overflow-hidden" style={{zIndex:1}}>
             <div ref={reel3Ref} className="absolute inset-0 w-full">
               <div className="reel-item w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-prodispro-gray to-prodispro-light-gray">
-                <div 
-                  className="symbol-value font-bold text-prodispro-blue leading-tight text-center select-none
-    text-lg sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl"
-                  style={{ fontSize: 'clamp(1rem, 4vw, 2.2rem)' }}
-                >
-                  000000
+                <div className="symbol-circle">
+                  <img src={iconProdispro} alt="" className={`symbol-icon${showResult ? ' hidden' : ''}`} />
+                  <span className={`symbol-value${showResult ? '' : ' hidden'}`}>000000</span>
                 </div>
               </div>
             </div>
@@ -566,8 +593,8 @@ const RouletteWheel = ({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(1,155,220,0.1)_0%,transparent_70%)] pointer-events-none"></div>
       </div>
 
-      {/* Botón móvil - Solo visible en móviles y tablets (hasta lg) */}
-      <div className="block lg:hidden w-full px-2 sm:px-4">
+      {/* Botón móvil */}
+      <div className={`w-full px-2 ${compact ? 'hidden' : 'block lg:hidden'}`}>
         <button
           onClick={spinReels}
           disabled={isSpinning || isActive}
@@ -591,8 +618,8 @@ const RouletteWheel = ({
       </div>
 
       {/* Resultado mostrado */}
-      {resultShown && (
-        <div className="text-center mt-3 md:mt-4">
+      {resultShown && !compact && (
+        <div className="text-center mt-3">
           <div className={`text-base sm:text-lg md:text-xl lg:text-2xl font-bold ${isWinnerRound ? 'text-green-400' : 'text-red-400'}`}>
             {isWinnerRound ? '🎉 ¡Felicitaciones! 🎉' : '❌ ¡Eliminado!'}
           </div>
@@ -603,7 +630,7 @@ const RouletteWheel = ({
       )}
 
       {/* Texto informativo */}
-      <div className="text-center text-xs sm:text-sm md:text-base text-gray-400 mt-2 md:mt-4 px-4">
+      <div className={`text-center text-xs text-gray-400 mt-1 px-4 ${compact ? 'hidden' : ''}`}>
         {!isActive && !resultShown ? (
           isSpinning ? (
             <p className="animate-pulse">🎰 Girando la máquina... ¡Espera el resultado!</p>
@@ -620,6 +647,38 @@ const RouletteWheel = ({
       </div>
 
       <style>{`
+        /* Perspectiva 3D para el volteo del círculo */
+        .reel-item { perspective: 400px; }
+
+        /* Círculo blanco en cada rodillo */
+        .symbol-circle {
+          width: clamp(64px, 14vw, 130px);
+          height: clamp(64px, 14vw, 130px);
+          border-radius: 50%;
+          background: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 20px rgba(1,155,220,0.35), 0 0 0 3px rgba(1,155,220,0.25);
+          flex-shrink: 0;
+          overflow: hidden;
+        }
+        .symbol-icon {
+          width: 80%;
+          height: 80%;
+          object-fit: contain;
+        }
+        .symbol-value {
+          font-weight: 800;
+          color: #019BDC;
+          font-size: clamp(0.75rem, 2.8vw, 1.5rem);
+          text-align: center;
+          line-height: 1;
+          letter-spacing: -0.5px;
+        }
+        .hidden { display: none; }
+
+
         @keyframes blink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
@@ -683,6 +742,7 @@ const RouletteWheel = ({
             min-height: 160px;
           }
         }
+
       `}</style>
     </div>
   );

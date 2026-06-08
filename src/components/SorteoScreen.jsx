@@ -1,41 +1,31 @@
-// src/components/SorteoScreen.jsx - COMPLETO CON RESPONSIVIDAD MEJORADA
-import React, { useState, useEffect } from 'react';
+// src/components/SorteoScreen.jsx
+import React, { useState } from 'react';
 import RouletteWheel from './RouletteWheel';
 import WinnerModal from './WinnerModal';
+import logoProdispro from '../assets/logo-prodispro.svg';
 
-// SorteoScreen maneja UNA sola unidad (3 rondas: eliminado, eliminado, ganador)
-// currentUnit: número de unidad actual (1-based), onUnitComplete: callback al terminar la unidad
-const SorteoScreen = ({ prize, participants, zoneName, currentUnit, onUnitComplete }) => {
-  const [currentRound, setCurrentRound] = useState(1); // 1, 2 o 3
-  const [roundLosers, setRoundLosers] = useState([]);
-  const [isRoundActive, setIsRoundActive] = useState(false);
-  const [currentWinner, setCurrentWinner] = useState(null);
-  const [showResult, setShowResult] = useState(false);
-  const [showWinnerModal, setShowWinnerModal] = useState(false);
-  const [unitWinner, setUnitWinner] = useState(null);
+const SorteoScreen = ({ prize, participants, zoneName, currentUnit, onUnitComplete, onBack, previousWinners = [], previousLosers = [] }) => {
+  const [currentRound, setCurrentRound]           = useState(1);
+  const [roundLosers, setRoundLosers]             = useState([]);
+  const [isRoundActive, setIsRoundActive]         = useState(false);
+  const [currentWinner, setCurrentWinner]         = useState(null);
+  const [showResult, setShowResult]               = useState(false);
+  const [showWinnerModal, setShowWinnerModal]     = useState(false);
+  const [unitWinner, setUnitWinner]               = useState(null);
+  const [spinningParticipant, setSpinningParticipant] = useState(null); // nombre que va girando
 
-  const totalRounds = 3; // siempre 3 rondas por unidad
+  const totalRounds   = 3;
   const isWinnerRound = currentRound === 3;
 
-  const handleRoundComplete = (selectedParticipant) => {
-    setCurrentWinner(selectedParticipant);
+  const handleRoundComplete = (selected) => {
+    setCurrentWinner(selected);
     setShowResult(true);
-
     if (isWinnerRound) {
-      const winner = {
-        participant: selectedParticipant,
-        prize: prize,
-        round: currentRound,
-        unit: currentUnit
-      };
-      setUnitWinner(winner);
+      setUnitWinner({ participant: selected, prize, round: currentRound, unit: currentUnit });
     } else {
-      setRoundLosers(prev => [...prev, { participant: selectedParticipant, round: currentRound }]);
+      setRoundLosers(prev => [...prev, { participant: selected, round: currentRound }]);
     }
-
-    setTimeout(() => {
-      setShowWinnerModal(true);
-    }, 1000);
+    setTimeout(() => setShowWinnerModal(true), 1000);
   };
 
   const continueToNextRound = () => {
@@ -43,341 +33,234 @@ const SorteoScreen = ({ prize, participants, zoneName, currentUnit, onUnitComple
     setCurrentWinner(null);
     setShowWinnerModal(false);
     setIsRoundActive(false);
-
+    setSpinningParticipant(null);
     if (isWinnerRound && unitWinner) {
-      // Unidad terminada — avisar al padre
-      onUnitComplete(unitWinner);
+      onUnitComplete(unitWinner, roundLosers);
     } else {
       setCurrentRound(prev => prev + 1);
     }
   };
 
-  const handleModalContinue = () => {
-    continueToNextRound();
+  const getPrizeImage = (p) => {
+    if (!p.imagen?.trim()) return null;
+    return p.imagen.startsWith('data:image') ? p.imagen : `data:image/jpeg;base64,${p.imagen}`;
   };
 
-  const startRound = () => {
-    console.log(`🎯 Iniciando ronda ${currentRound} (${isWinnerRound ? 'GANADOR' : 'ELIMINADO'})`);
-    setIsRoundActive(true);
-  };
+  const roundColor = isWinnerRound
+    ? { bg: 'rgba(16,185,129,0.12)', border: '#10b981', text: '#10b981', label: '🏆 GANADOR' }
+    : { bg: 'rgba(239,68,68,0.12)',  border: '#ef4444', text: '#ef4444', label: '❌ ELIMINADO' };
 
-  const getPrizeImage = (prize) => {
-    if (prize.imagen && prize.imagen.trim()) {
-      if (prize.imagen.startsWith('data:image')) {
-        return prize.imagen;
-      }
-      return `data:image/jpeg;base64,${prize.imagen}`;
-    }
-    return null;
-  };
-
-  const getPrizeIcon = (prizeName) => {
-    if (prizeName.includes("CAFETERA")) return "☕";
-    if (prizeName.includes("ASPIRADORA")) return "🧹";
-    if (prizeName.includes("MOTO")) return "🏍️";
-    if (prizeName.includes("REFRIGERADORA")) return "🧊";
-    return "🎁";
-  };
-
+  // participante visible en col derecha: el ganador/eliminado confirmado, o el que está girando
+  const visibleParticipant = currentWinner || spinningParticipant;
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 overflow-hidden">
-      
-      {/* Winner Modal */}
+    <div className="h-full flex flex-col overflow-hidden gap-2">
+
       <WinnerModal
         isOpen={showWinnerModal}
         winner={currentWinner}
         prize={prize}
         unit={currentUnit}
         totalUnits={prize.cantidad}
-        onContinue={handleModalContinue}
+        onContinue={continueToNextRound}
         isWinnerRound={isWinnerRound}
       />
 
-      {/* Header del Sorteo - Responsivo mejorado */}
-      <div className="bg-gradient-to-r from-slate-800 via-gray-800 to-slate-800 p-3 sm:p-4 md:p-6 border-b-2 border-prodispro-blue/30 shadow-xl">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 sm:space-x-4 md:space-x-6">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 relative">
-                {getPrizeImage(prize) ? (
-                  <img 
-                    src={getPrizeImage(prize)} 
-                    alt={prize.name}
-                    className="w-full h-full object-cover rounded-xl sm:rounded-2xl border-2 sm:border-3 border-prodispro-blue shadow-lg"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl md:text-5xl bg-gradient-to-br from-slate-700 to-gray-700 rounded-xl sm:rounded-2xl border-2 sm:border-3 border-prodispro-blue shadow-lg">
-                    {getPrizeIcon(prize.name)}
-                  </div>
-                )}
-                <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 bg-gradient-to-r from-prodispro-blue to-cyan-400 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg">
-                  {currentUnit}
-                </div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-prodispro-blue to-cyan-400 bg-clip-text text-transparent mb-1 sm:mb-2 truncate">
-                  {prize.name}
-                </h1>
-                <p className="text-xs sm:text-base md:text-lg lg:text-xl text-gray-300 mb-1">
-                  Unidad {currentUnit} de {prize.cantidad} •
-                  Ronda {currentRound} de 3
-                  {zoneName && <span className="text-cyan-300"> • {zoneName}</span>}
-                </p>
-                <div className={`inline-block px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-bold ${
-                  isWinnerRound 
-                    ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white' 
-                    : 'bg-gradient-to-r from-red-500 to-rose-500 text-white'
-                }`}>
-                  {isWinnerRound ? '🏆 GANADOR' : '❌ ELIMINADO'}
-                </div>
-              </div>
-            </div>
-            
-            <div className="text-right">
-              <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-prodispro-blue to-cyan-400 bg-clip-text text-transparent">
-                {currentRound}/{totalRounds}
-              </div>
-              <div className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-400">Rondas</div>
-            </div>
-          </div>
-          
-          {/* Barra de progreso */}
-          <div className="mt-3 sm:mt-4 md:mt-6">
-            <div className="w-full bg-slate-700 rounded-full h-2 sm:h-3 md:h-4 overflow-hidden shadow-inner">
-              <div 
-                className="h-full bg-gradient-to-r from-prodispro-blue via-cyan-400 to-blue-500 rounded-full transition-all duration-500 relative"
-                style={{ width: `${((currentRound - 1) / totalRounds) * 100}%` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-              </div>
-            </div>
+      {/* Info bar compacta */}
+      <div className="flex-shrink-0 flex items-center gap-3 bg-slate-800/50 border border-white/[0.06] rounded-xl px-3 py-2">
+        <div className="w-9 h-9 rounded-lg overflow-hidden border border-prodispro-blue/40 flex-shrink-0">
+          {getPrizeImage(prize)
+            ? <img src={getPrizeImage(prize)} alt={prize.name} className="w-full h-full object-cover" />
+            : <div className="w-full h-full flex items-center justify-center bg-slate-700 text-base">🎁</div>
+          }
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-white text-sm truncate">{prize.name}</p>
+          <p className="text-xs text-gray-400">
+            Unidad <span className="text-prodispro-blue font-bold">{currentUnit}</span>/{prize.cantidad}
+            {' · '}Ronda <span className="font-bold text-white">{currentRound}</span>/{totalRounds}
+            {zoneName && <span className="text-cyan-400"> · {zoneName}</span>}
+          </p>
+        </div>
+        <div className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border"
+          style={{ background: roundColor.bg, borderColor: roundColor.border, color: roundColor.text }}>
+          {roundColor.label}
+        </div>
+
+        {/* Eliminados centrado */}
+        <div className="flex-1 flex justify-center">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-xs font-bold text-red-400">
+            ❌ Eliminados <span className="text-white">{roundLosers.length}/{totalRounds - 1}</span>
           </div>
         </div>
+
+        {/* Ronda counter */}
+        <div className="flex-shrink-0 flex items-end gap-0.5">
+          <span className="text-2xl font-extrabold text-prodispro-blue leading-none">{currentRound}</span>
+          <span className="text-gray-500 text-sm mb-0.5">/{totalRounds}</span>
+        </div>
+
+        {/* Botón volver */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/15 text-white rounded-lg text-xs font-medium transition-colors border border-white/10"
+          >
+            ← Inicio
+          </button>
+        )}
       </div>
 
-      {/* Contenido principal - Layout responsivo */}
-      <div className="w-full p-3 sm:p-4 md:p-6">
-        
-        {/* Layout Desktop (2xl+) - 3 columnas */}
-        <div className="hidden 2xl:grid 2xl:grid-cols-3 2xl:gap-8 2xl:h-[calc(100vh-200px)] w-full">
-          
-          {/* Máquina tragamonedas - Columna central */}
-          <div className="col-span-1 bg-gradient-to-br from-slate-800 to-slate-700 rounded-3xl p-8 flex flex-col justify-center border border-slate-600 shadow-2xl w-full h-full">
-            <RouletteWheel
-              participants={participants}
-              onWinnerSelected={handleRoundComplete}
-              isActive={isRoundActive}
-              onStart={startRound}
-              showResult={showResult}
-              currentWinner={currentWinner}
-              isWinnerRound={isWinnerRound}
-            />
-          </div>
+      {/* 3 columnas */}
+      <div className="flex-1 min-h-0 flex gap-2">
 
-          {/* Eliminados */}
-          <div className="col-span-1 bg-gradient-to-br from-red-900/30 to-rose-900/30 rounded-3xl p-6 flex flex-col min-h-0 border border-red-500/30 shadow-xl w-full h-full">
-            <div className="flex items-center justify-center mb-6 flex-shrink-0">
-              <div className="bg-gradient-to-r from-red-500 to-rose-500 px-6 py-3 rounded-2xl">
-                <h3 className="text-xl font-bold text-white text-center">
-                  ❌ ELIMINADOS ({roundLosers.length})
-                </h3>
+        {/* COL 1 — Eliminados (anteriores + actuales) */}
+        {(() => {
+          const allLosers = [...previousLosers, ...roundLosers];
+          return (
+            <div className="flex flex-col w-64 flex-shrink-0 bg-slate-800/60 border border-red-500/20 rounded-2xl overflow-hidden">
+              <div className="flex-shrink-0 px-3 py-2 bg-red-500/10 border-b border-red-500/20 flex items-center gap-2">
+                <span className="text-xs font-bold text-red-400">❌ Eliminados</span>
+                <span className="ml-auto text-xs bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded-full font-bold">{allLosers.length}</span>
               </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto pr-2 min-h-0 custom-scrollbar">
-              <div className="space-y-4">
-                {roundLosers.length === 0 ? (
-                  <div className="text-center text-gray-400 py-12">
-                    <div className="text-6xl mb-4 animate-pulse">⏳</div>
-                    <p className="text-xl">Sin eliminados aún</p>
+              <div className="flex-1 min-h-0 overflow-y-auto p-2 sorteo-scroll">
+                {allLosers.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-600 text-xs gap-1 py-6">
+                    <span className="text-2xl">⏳</span>Sin eliminados
                   </div>
                 ) : (
-                  roundLosers.map((loser, index) => (
-                    <div key={index} className="p-4 bg-gradient-to-r from-red-500/10 to-rose-500/10 border border-red-400/30 rounded-xl hover:from-red-500/20 hover:to-rose-500/20 transition-all duration-300">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-rose-500 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-lg">
+                  <div className="space-y-1">
+                    {allLosers.map((loser, i) => (
+                      <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-red-500/5 border border-red-500/10">
+                        <div className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-xs font-bold text-red-400 flex-shrink-0">
                           {loser.participant.name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-lg truncate text-white">{loser.participant.name}</h4>
-                          <p className="text-red-300 text-sm">
-                            {loser.participant.invoiceNumber} • R{loser.round}
-                          </p>
-                          <p className="text-sm text-gray-400 truncate">
-                            {loser.participant.ciudad}
-                          </p>
+                          <p className="text-xs font-semibold text-white leading-tight break-words">{loser.participant.name}</p>
+                          <p className="text-xs text-red-400/60">{loser.participant.invoiceNumber}</p>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
-          </div>
+          );
+        })()}
 
-          {/* Ganador de esta unidad */}
-          <div className="col-span-1 bg-gradient-to-br from-emerald-900/30 to-green-900/30 rounded-3xl p-6 flex flex-col min-h-0 border border-emerald-500/30 shadow-xl w-full h-full">
-            <div className="flex items-center justify-center mb-6 flex-shrink-0">
-              <div className="bg-gradient-to-r from-emerald-500 to-green-500 px-6 py-3 rounded-2xl">
-                <h3 className="text-xl font-bold text-white text-center">
-                  🏆 GANADOR UNIDAD {currentUnit}
-                </h3>
-              </div>
+        {/* COL 2 — Ruleta (centro, toma todo el espacio restante) */}
+        <div className="flex-1 min-w-0 min-h-0 relative">
+          {/* Logo marca de agua — fondo estático tenue, sin animación */}
+          <img
+            src={logoProdispro}
+            alt="" aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+            style={{ zIndex: 0, padding: '8%', opacity: 0.10 }}
+          />
+          <div className="relative h-full" style={{ zIndex: 1 }}>
+          <RouletteWheel
+            compact
+            participants={participants}
+            onWinnerSelected={handleRoundComplete}
+            isActive={isRoundActive}
+            onStart={() => setIsRoundActive(true)}
+            showResult={showResult}
+            currentWinner={currentWinner}
+            isWinnerRound={isWinnerRound}
+            onParticipantChange={setSpinningParticipant}
+          />
+          </div>
+        </div>
+
+        {/* COL 3 — Participante girando + Ganador */}
+        <div className="flex flex-col gap-2 w-64 flex-shrink-0">
+
+          {/* Participante actual (girando o resultado) */}
+          <div className={`flex-shrink-0 rounded-2xl border-2 overflow-hidden transition-all duration-300 ${
+            showResult
+              ? isWinnerRound ? 'border-emerald-500' : 'border-red-500'
+              : 'border-prodispro-blue/40'
+          }`} style={{
+            background: showResult
+              ? isWinnerRound ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)'
+              : 'rgba(30,41,59,0.7)'
+          }}>
+            <div className="px-3 py-1.5 border-b border-white/[0.06] flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${isRoundActive && !showResult ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+              <p className="text-xs text-gray-400 uppercase tracking-wider">
+                {showResult
+                  ? isWinnerRound ? '🏆 Ganador' : '❌ Eliminado'
+                  : isRoundActive ? 'Seleccionando...' : 'Participante'}
+              </p>
             </div>
-            <div className="flex-1 flex items-center justify-center">
-              {!unitWinner ? (
-                <div className="text-center text-gray-400 py-12">
-                  <div className="text-6xl mb-4 animate-pulse">🎯</div>
-                  <p className="text-xl">Pendiente</p>
+            <div className="p-3">
+              {visibleParticipant ? (
+                <div className="space-y-1.5">
+                  <p className="font-bold text-white text-xs leading-tight">{visibleParticipant.name}</p>
+                  <p className="text-xs text-gray-400">📄 <span className="text-prodispro-blue font-mono">{visibleParticipant.invoiceNumber}</span></p>
+                  <p className="text-xs text-gray-400">📍 <span className="text-white">{visibleParticipant.ciudad}</span></p>
+                  <p className="text-xs text-gray-400">👤 <span className="text-white truncate block">{visibleParticipant.vendedor || 'N/A'}</span></p>
+                  <p className="text-xs text-gray-400">📅 <span className="text-white">{visibleParticipant.fechaFormateada}</span></p>
                 </div>
               ) : (
-                <div className="p-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-400/30 rounded-xl relative overflow-hidden w-full">
-                  <div className="flex items-center space-x-4 relative z-10">
-                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-lg">
-                      {unitWinner.participant.name.charAt(0)}
+                <p className="text-xs text-gray-600 text-center py-3">Presiona para girar</p>
+              )}
+            </div>
+          </div>
+
+          {/* Ganadores: anteriores + actual */}
+          <div className="flex-1 min-h-0 bg-slate-800/60 border border-emerald-500/20 rounded-2xl overflow-hidden flex flex-col">
+            <div className="flex-shrink-0 px-3 py-2 bg-emerald-500/10 border-b border-emerald-500/20 flex items-center gap-2">
+              <span className="text-xs font-bold text-emerald-400">🏆 Ganadores</span>
+              <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-full font-bold">
+                {previousWinners.length + (unitWinner ? 1 : 0)}/{prize.cantidad}
+              </span>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-2 sorteo-scroll">
+              {previousWinners.length === 0 && !unitWinner ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-600 text-xs text-center gap-1 py-6">
+                  <span className="text-2xl">🎯</span>Pendiente...
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {/* Ganadores anteriores */}
+                  {previousWinners.map((w, i) => (
+                    <div key={`prev-${i}`} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-400 flex-shrink-0">
+                        {w.participant.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-white leading-tight break-words">{w.participant.name}</p>
+                        <p className="text-xs text-emerald-400/60">U{w.unit} · {w.participant.invoiceNumber}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-lg truncate text-white">{unitWinner.participant.name}</h4>
-                      <p className="text-emerald-300 text-sm">{unitWinner.participant.invoiceNumber}</p>
-                      <p className="text-sm text-gray-400 truncate">{unitWinner.participant.ciudad}</p>
+                  ))}
+                  {/* Ganador unidad actual */}
+                  {unitWinner && (
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-400/40">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/30 border border-emerald-400 flex items-center justify-center text-xs font-bold text-emerald-300 flex-shrink-0">
+                        {unitWinner.participant.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-white leading-tight break-words">{unitWinner.participant.name}</p>
+                        <p className="text-xs text-emerald-400/70">U{currentUnit} · {unitWinner.participant.invoiceNumber}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/20 to-emerald-400/0 animate-shimmer" />
+                  )}
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Layout Responsivo (móvil/tablet/desktop) */}
-        <div className="2xl:hidden space-y-4 sm:space-y-6">
-          
-          {/* Máquina tragamonedas */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-slate-600 shadow-xl">
-            <RouletteWheel
-              participants={participants}
-              onWinnerSelected={handleRoundComplete}
-              isActive={isRoundActive}
-              onStart={startRound}
-              showResult={showResult}
-              currentWinner={currentWinner}
-              isWinnerRound={isWinnerRound}
-            />
-          </div>
-
-          {/* Grid de Ganadores y Eliminados */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            
-            {/* Ganador de esta unidad */}
-            <div className="bg-gradient-to-br from-emerald-900/30 to-green-900/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-emerald-500/30 shadow-xl">
-              <div className="flex items-center justify-center mb-4 sm:mb-6">
-                <div className="bg-gradient-to-r from-emerald-500 to-green-500 px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl">
-                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-white text-center">
-                    🏆 GANADOR U{currentUnit}
-                  </h3>
-                </div>
-              </div>
-              <div className="flex items-center justify-center">
-                {!unitWinner ? (
-                  <div className="text-center text-gray-400 py-8">
-                    <div className="text-3xl sm:text-4xl mb-2">🎯</div>
-                    <p className="text-sm">Pendiente</p>
-                  </div>
-                ) : (
-                  <div className="p-3 sm:p-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-400/30 rounded-lg sm:rounded-xl relative overflow-hidden w-full">
-                    <div className="flex items-center space-x-3 relative z-10">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center text-sm font-bold text-white">
-                        {unitWinner.participant.name.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium sm:font-semibold truncate text-white text-sm sm:text-base">{unitWinner.participant.name}</h4>
-                        <p className="text-emerald-300 text-xs sm:text-sm">{unitWinner.participant.invoiceNumber}</p>
-                        <p className="text-xs text-gray-400 truncate">{unitWinner.participant.ciudad}</p>
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/10 to-emerald-400/0 animate-shimmer" />
-                  </div>
-                )}
-              </div>
-            </div>{/* Eliminados */}
-            <div className="bg-gradient-to-br from-red-900/30 to-rose-900/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-red-500/30 shadow-xl">
-              <div className="flex items-center justify-center mb-4 sm:mb-6">
-                <div className="bg-gradient-to-r from-red-500 to-rose-500 px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl">
-                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-white text-center">
-                    ❌ ELIMINADOS ({roundLosers.length})
-                  </h3>
-                </div>
-              </div>
-              
-              <div className="max-h-48 sm:max-h-64 md:max-h-80 overflow-y-auto custom-scrollbar">
-                <div className="space-y-3">
-                  {roundLosers.length === 0 ? (
-                    <div className="text-center text-gray-400 py-8">
-                      <div className="text-3xl sm:text-4xl mb-2">⏳</div>
-                      <p className="text-sm">Sin eliminados aún</p>
-                    </div>
-                  ) : (
-                    roundLosers.map((loser, index) => (
-                      <div key={index} className="p-3 sm:p-4 bg-gradient-to-r from-red-500/10 to-rose-500/10 border border-red-400/30 rounded-lg sm:rounded-xl">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-red-500 to-rose-500 rounded-full flex items-center justify-center text-sm font-bold text-white">
-                            {loser.participant.name.charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium sm:font-semibold truncate text-white text-sm sm:text-base">{loser.participant.name}</h4>
-                            <p className="text-red-300 text-xs sm:text-sm">
-                              {loser.participant.invoiceNumber} • R{loser.round}
-                            </p>
-                            <p className="text-xs text-gray-400 truncate">
-                              {loser.participant.ciudad}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Estilos para scrollbar y animaciones */}
       <style>{`
-        .custom-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: #059669 #374151;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-          height: 6px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #374151;
-          border-radius: 3px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(to bottom, #059669, #10b981);
-          border-radius: 3px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(to bottom, #047857, #059669);
-        }
-        
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        
-        .animate-shimmer {
-          animation: shimmer 3s infinite;
-        }
+        .sorteo-scroll { scrollbar-width: thin; scrollbar-color: #334155 #1e293b; }
+        .sorteo-scroll::-webkit-scrollbar { width: 3px; }
+        .sorteo-scroll::-webkit-scrollbar-track { background: #1e293b; }
+        .sorteo-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
       `}</style>
     </div>
   );

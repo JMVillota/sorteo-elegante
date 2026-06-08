@@ -1,12 +1,65 @@
 // src/components/ZoneSelectionScreen.jsx
 import React, { useState, useMemo } from 'react';
-import { FaPlay, FaMapMarkerAlt, FaUsers, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { Play, MapPin, Users } from 'lucide-react';
+import carchiBandera    from '../assets/images/carchi.png';
+import imbaburabandera  from '../assets/images/imbabura.png';
+import pichinchaBandera from '../assets/images/pichincha.png';
+
+// Colores + imagen de bandera por provincia
+const PROVINCE_COLORS = {
+  'CARCHI':    { bg: 'rgba(22,163,74,0.15)',  border: 'rgba(22,163,74,0.7)',  accent: '#16a34a', light: 'rgba(22,163,74,0.25)',  flag: carchiBandera    },
+  'IMBABURA':  { bg: 'rgba(220,38,38,0.15)',  border: 'rgba(220,38,38,0.7)',  accent: '#dc2626', light: 'rgba(220,38,38,0.25)',  flag: imbaburabandera  },
+  'PICHINCHA': { bg: 'rgba(202,138,4,0.15)',  border: 'rgba(202,138,4,0.7)',  accent: '#ca8a04', light: 'rgba(202,138,4,0.25)',  flag: pichinchaBandera },
+};
+
+// Paleta fallback para provincias no mapeadas
+const FALLBACK_COLORS = [
+  { bg: 'rgba(1,155,220,0.15)',   border: 'rgba(1,155,220,0.6)',   accent: '#019BDC', light: 'rgba(1,155,220,0.25)',   stripe: '#019BDC' },
+  { bg: 'rgba(167,139,250,0.15)', border: 'rgba(167,139,250,0.6)', accent: '#a78bfa', light: 'rgba(167,139,250,0.25)', stripe: '#a78bfa' },
+  { bg: 'rgba(34,211,238,0.15)',  border: 'rgba(34,211,238,0.6)',  accent: '#22d3ee', light: 'rgba(34,211,238,0.25)',  stripe: '#22d3ee' },
+  { bg: 'rgba(251,146,60,0.15)',  border: 'rgba(251,146,60,0.6)',  accent: '#fb923c', light: 'rgba(251,146,60,0.25)',  stripe: '#fb923c' },
+  { bg: 'rgba(52,211,153,0.15)',  border: 'rgba(52,211,153,0.6)',  accent: '#34d399', light: 'rgba(52,211,153,0.25)',  stripe: '#34d399' },
+];
+
+const getZoneColor = (name, fallbackIdx) => {
+  const match = PROVINCE_COLORS[name?.toUpperCase()];
+  return match || FALLBACK_COLORS[fallbackIdx % FALLBACK_COLORS.length];
+};
+
+// Genera puntos distribuidos en el perímetro de un rectángulo dado
+const makeDots = (w, h, gap = 22) => {
+  const dots = [];
+  // top
+  for (let x = gap; x < w - gap / 2; x += gap) dots.push([x, 0]);
+  // right
+  for (let y = gap; y < h - gap / 2; y += gap) dots.push([w, y]);
+  // bottom (reversed)
+  for (let x = w - gap; x > gap / 2; x -= gap) dots.push([x, h]);
+  // left (reversed)
+  for (let y = h - gap; y > gap / 2; y -= gap) dots.push([0, y]);
+  return dots;
+};
+
+const CasinoBorder = ({ color }) => {
+  const W = 300, H = 300;
+  const dots = makeDots(W, H, 20);
+  return (
+    <svg
+      className="zone-casino-border"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+    >
+      {dots.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={4} fill={color} style={{ animationDelay: `${(i * 0.13) % 0.5}s` }} />
+      ))}
+    </svg>
+  );
+};
 
 const ZoneSelectionScreen = ({ prize, participants, currentUnit, onConfirm, onBack }) => {
-  const [filterType, setFilterType] = useState('provincia'); // 'provincia' | 'supervisor'
+  const [filterType, setFilterType] = useState('provincia');
   const [selectedZone, setSelectedZone] = useState(null);
-  const [expandedZone, setExpandedZone] = useState(null);
-
   const getPrizeImage = (prize) => {
     if (prize.imagen && prize.imagen.trim()) {
       if (prize.imagen.startsWith('data:image')) return prize.imagen;
@@ -15,33 +68,17 @@ const ZoneSelectionScreen = ({ prize, participants, currentUnit, onConfirm, onBa
     return null;
   };
 
-  const getPrizeIcon = (prizeName) => {
-    if (prizeName.includes("CAFETERA")) return "☕";
-    if (prizeName.includes("ASPIRADORA")) return "🧹";
-    if (prizeName.includes("MOTO")) return "🏍️";
-    if (prizeName.includes("REFRIGERADORA")) return "🧊";
-    return "🎁";
-  };
-
-  // Agrupar participantes por provincia o supervisor
   const zones = useMemo(() => {
     const grouped = {};
     participants.forEach(p => {
       const key = filterType === 'provincia'
         ? (p.provincia || 'SIN PROVINCIA')
         : (p.supervisor || 'SIN SUPERVISOR');
-
       if (!grouped[key]) {
-        grouped[key] = {
-          name: key,
-          participants: [],
-          codigoSPV: p.codigoSPV,
-          codigoProvincia: p.codigoProvincia,
-        };
+        grouped[key] = { name: key, participants: [], codigoSPV: p.codigoSPV, codigoProvincia: p.codigoProvincia };
       }
       grouped[key].participants.push(p);
     });
-
     return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
   }, [participants, filterType]);
 
@@ -51,192 +88,250 @@ const ZoneSelectionScreen = ({ prize, participants, currentUnit, onConfirm, onBa
   }, [selectedZone, zones]);
 
   const handleConfirm = () => {
-    if (selectedZone && selectedParticipants.length > 0) {
-      onConfirm(selectedParticipants, selectedZone);
-    }
+    if (selectedZone && selectedParticipants.length > 0) onConfirm(selectedParticipants, selectedZone);
   };
 
   return (
-    <div className="animate-fade-in-up px-2 sm:px-4 max-w-5xl mx-auto">
-      {/* Premio actual */}
-      <div className="mb-6 card-modern p-4 flex items-center space-x-4">
-        <div className="w-14 h-14 flex-shrink-0 relative">
-          {getPrizeImage(prize) ? (
-            <img
-              src={getPrizeImage(prize)}
-              alt={prize.name}
-              className="w-full h-full object-cover rounded-xl border-2 border-prodispro-blue/50 shadow-lg"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl border-2 border-prodispro-blue/50 shadow-lg">
-              {getPrizeIcon(prize.name)}
-            </div>
+    <div className="h-full flex flex-col gap-3 animate-fade-in-up">
+
+      {/* Barra superior: premio + toggle */}
+      <div className="flex-shrink-0 flex items-center gap-3">
+        {/* Premio compacto */}
+        <div className="flex items-center gap-3 bg-slate-800/70 border border-white/10 rounded-xl px-3 py-2 flex-1 min-w-0">
+          <div className="w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden border border-prodispro-blue/40">
+            {getPrizeImage(prize) ? (
+              <img src={getPrizeImage(prize)} alt={prize.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-xl bg-slate-700">🎁</div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-gray-400 leading-none mb-0.5">Premio · Unidad <span className="text-prodispro-blue font-bold">{currentUnit}</span> de {prize.cantidad}</p>
+            <p className="font-bold text-white text-sm truncate">{prize.name}</p>
+          </div>
+          {currentUnit === 1 && (
+            <button onClick={onBack} className="flex-shrink-0 text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors">
+              Cambiar
+            </button>
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-gray-400 mb-0.5">Premio seleccionado</p>
-          <h2 className="text-lg font-bold text-gradient-primary truncate">{prize.name}</h2>
-          <p className="text-sm text-gray-300">
-            Unidad <span className="text-prodispro-blue font-bold">{currentUnit}</span> de {prize.cantidad}
-          </p>
-        </div>
-        {currentUnit === 1 && (
-          <button
-            onClick={onBack}
-            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-gray-300 hover:text-white rounded-lg text-sm transition-colors"
-          >
-            Cambiar premio
-          </button>
-        )}
-      </div>
 
-      <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-gradient-primary text-center">
-        Seleccionar Zona — Unidad {currentUnit} de {prize.cantidad}
-      </h2>
-      <p className="text-center text-gray-400 text-sm mb-6">
-        Elige de qué zona quieres que salga el ganador de la <span className="text-prodispro-blue font-semibold">unidad {currentUnit}</span> de <span className="text-white font-semibold">{prize.name}</span>
-      </p>
-
-      {/* Toggle tipo de filtro */}
-      <div className="flex justify-center mb-6">
-        <div className="flex bg-slate-800 rounded-xl p-1 border border-slate-600">
-          <button
-            onClick={() => { setFilterType('provincia'); setSelectedZone(null); }}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              filterType === 'provincia'
-                ? 'bg-prodispro-blue text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            Por Provincia
-          </button>
-          <button
-            onClick={() => { setFilterType('supervisor'); setSelectedZone(null); }}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              filterType === 'supervisor'
-                ? 'bg-prodispro-blue text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            Por Supervisor
-          </button>
-        </div>
-      </div>
-
-      {/* Lista de zonas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
-        {zones.map((zone) => {
-          const isSelected = selectedZone === zone.name;
-          const isExpanded = expandedZone === zone.name;
-          const count = zone.participants.length;
-
-          return (
-            <div
-              key={zone.name}
-              className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
-                isSelected
-                  ? 'border-prodispro-blue bg-prodispro-blue/15 shadow-lg shadow-prodispro-blue/20'
-                  : 'border-slate-600 bg-slate-800/50 hover:border-prodispro-blue/50 hover:bg-slate-800/70'
+        {/* Toggle */}
+        <div className="flex-shrink-0 flex bg-slate-800 rounded-xl p-1 border border-slate-600">
+          {['provincia', 'supervisor'].map(type => (
+            <button
+              key={type}
+              onClick={() => { setFilterType(type); setSelectedZone(null); }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                filterType === type ? 'bg-prodispro-blue text-white shadow-lg' : 'text-gray-400 hover:text-white'
               }`}
             >
+              {type === 'provincia' ? 'Por Provincia' : 'Por Supervisor'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid de zonas — ocupa todo el espacio disponible */}
+      <div className="flex-1 min-h-0 overflow-y-auto zone-scroll px-1">
+        <div className="zone-grid" style={{minHeight:'100%', paddingBottom:'100px', alignContent:'center'}}>
+          {zones.map((zone, idx) => {
+            const color = getZoneColor(zone.name, idx);
+            const isSelected = selectedZone === zone.name;
+            const count = zone.participants.length;
+
+            return (
               <div
-                className="p-3 sm:p-4 cursor-pointer"
+                key={zone.name}
                 onClick={() => setSelectedZone(isSelected ? null : zone.name)}
+                className={`zone-card-wrapper${isSelected ? ' zone-card-wrapper--selected' : ''}`}
+                style={{ '--neon-color': color.accent }}
               >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    isSelected ? 'bg-prodispro-blue' : 'bg-slate-700'
-                  }`}>
-                    <FaMapMarkerAlt className="text-white text-sm" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white text-sm truncate">{zone.name}</h3>
-                    {filterType === 'supervisor' && zone.codigoSPV && (
-                      <p className="text-xs text-gray-400">Cód. {zone.codigoSPV}</p>
-                    )}
-                    {filterType === 'provincia' && zone.codigoProvincia && (
-                      <p className="text-xs text-gray-400">Prov. {zone.codigoProvincia}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2 flex-shrink-0">
-                    <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-bold ${
-                      isSelected ? 'bg-prodispro-blue/30 text-prodispro-blue' : 'bg-slate-700 text-gray-300'
-                    }`}>
-                      <FaUsers className="text-xs" />
-                      <span>{count}</span>
+              {/* Puntos de casino parpadeantes sobre el borde */}
+              <CasinoBorder color={color.accent} />
+
+              <div
+                className="zone-card"
+                style={{
+                  background: isSelected ? color.bg : 'rgba(30,41,59,0.7)',
+                  boxShadow: isSelected ? `0 0 25px ${color.accent}66, 0 0 50px ${color.accent}22` : 'none',
+                }}
+              >
+                {/* Bandera: ocupa la mitad superior de la card */}
+                <div
+                  className="zone-flag"
+                  style={color.flag
+                    ? { backgroundImage: `url(${color.flag})`, backgroundSize: 'cover', backgroundPosition: 'center center', backgroundRepeat: 'no-repeat' }
+                    : { background: color.stripe || color.accent }
+                  }
+                />
+
+                {/* Línea separadora */}
+                <div className="zone-divider" style={{ background: color.border }} />
+
+                {/* Datos: mitad inferior */}
+                <div className="zone-body">
+                  {/* Icono + nombre */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="zone-icon-lg" style={{ background: color.light, color: color.accent }}>
+                      <MapPin size={26} />
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setExpandedZone(isExpanded ? null : zone.name); }}
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      {isExpanded ? <FaChevronUp className="text-xs" /> : <FaChevronDown className="text-xs" />}
-                    </button>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-extrabold text-white text-2xl leading-tight truncate">{zone.name}</h3>
+                      <p className="text-sm mt-0.5" style={{ color: color.accent }}>
+                        {filterType === 'provincia' ? `Provincia ${zone.codigoProvincia || '—'}` : `Supervisor ${zone.codigoSPV || '—'}`}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center" style={{ background: color.accent }}>
+                        <svg width="13" height="13" viewBox="0 0 10 10" fill="none">
+                          <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Participantes */}
+                  <div className="flex items-center gap-2 text-xl font-bold text-white">
+                    <Users size={20} style={{ color: color.accent }} />
+                    <span>{count.toLocaleString()}</span>
+                    <span className="text-base text-gray-400 font-normal">participantes</span>
                   </div>
                 </div>
               </div>
-
-              {/* Detalle de participantes */}
-              {isExpanded && (
-                <div className="border-t border-slate-600/50 px-4 pb-3 pt-2 max-h-40 overflow-y-auto custom-scrollbar">
-                  <div className="space-y-1">
-                    {zone.participants.slice(0, 20).map((p, i) => (
-                      <div key={p.id} className="flex items-center space-x-2 text-xs text-gray-300">
-                        <span className="text-gray-500 w-5 text-right flex-shrink-0">{i + 1}.</span>
-                        <span className="truncate">{p.name}</span>
-                        <span className="text-gray-500 flex-shrink-0">{p.ciudad}</span>
-                      </div>
-                    ))}
-                    {zone.participants.length > 20 && (
-                      <p className="text-xs text-gray-500 text-center pt-1">
-                        ... y {zone.participants.length - 20} más
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Panel inferior de confirmación */}
-      {selectedZone && (
-        <div className="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-auto sm:min-w-96 bg-gradient-to-r from-slate-800/95 to-slate-700/95 backdrop-blur-sm border border-prodispro-blue/50 rounded-2xl p-4 shadow-2xl z-40 animate-scale-up">
-          <div className="flex items-center space-x-4">
+      {/* Toast fijo al seleccionar zona */}
+      {selectedZone && (() => {
+        const idx = zones.findIndex(z => z.name === selectedZone);
+        const color = getZoneColor(selectedZone, idx);
+        return (
+          <div
+            className="fixed bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-5 px-6 py-4 rounded-2xl shadow-2xl z-50 border animate-scale-up"
+            style={{ background: 'rgba(15,23,42,0.95)', borderColor: color.border, boxShadow: `0 0 40px ${color.light}`, backdropFilter: 'blur(12px)', minWidth: '420px' }}
+          >
+            <div className="zone-icon flex-shrink-0" style={{ background: color.light, color: color.accent }}>
+              <MapPin size={18} />
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-400">Zona seleccionada</p>
-              <h3 className="font-bold text-white text-sm truncate">{selectedZone}</h3>
-              <p className="text-xs text-prodispro-blue">
-                {selectedParticipants.length} participantes disponibles
-              </p>
+              <p className="font-bold text-white text-base truncate">{selectedZone}</p>
+              <p className="text-sm" style={{ color: color.accent }}>{selectedParticipants.length.toLocaleString()} participantes</p>
             </div>
             <button
               onClick={handleConfirm}
-              className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl text-sm font-bold transition-all duration-200 flex items-center space-x-2 shadow-lg hover:scale-105"
+              className="flex items-center gap-2 px-7 py-3.5 rounded-xl text-base font-bold text-white transition-all hover:scale-105 flex-shrink-0"
+              style={{ background: `linear-gradient(135deg, #22c55e, #16a34a)`, boxShadow: '0 4px 15px rgba(34,197,94,0.4)' }}
             >
-              <FaPlay className="text-xs" />
-              <span>Iniciar Sorteo</span>
+              <Play size={16} fill="white" />
+              Iniciar Sorteo
             </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <style>{`
-        .custom-scrollbar {
+        .zone-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 16px;
+          padding: 2px;
+          align-content: start;
+        }
+        /* Wrapper sin overflow:hidden para que los puntos de casino sean visibles */
+        .zone-card-wrapper {
+          position: relative;
+          border-radius: 18px;
+          cursor: pointer;
+          padding: 3px;
+          background: rgba(255,255,255,0.06);
+          height: 300px;
+          transition: background 0.3s;
+        }
+        .zone-card-wrapper:hover { filter: brightness(1.07); }
+
+        /* Puntos de casino — SVG inline animado sobre el borde */
+        .zone-casino-border {
+          position: absolute;
+          inset: 0;
+          border-radius: 18px;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
+        .zone-card-wrapper--selected .zone-casino-border {
+          opacity: 1;
+        }
+        .zone-casino-border circle {
+          animation: casino-blink 0.45s ease-in-out infinite alternate;
+        }
+        @keyframes casino-blink {
+          0%   { opacity: 0.1;  }
+          100% { opacity: 1; filter: drop-shadow(0 0 4px currentColor); }
+        }
+
+        /* Card interior: overflow hidden para bandera */
+        .zone-card {
+          position: relative;
+          border-radius: 15px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          transition: box-shadow 0.3s, background 0.3s;
+        }
+        .zone-flag {
+          height: 180px;
+          flex-shrink: 0;
+          width: 100%;
+          display: block;
+        }
+        .zone-divider {
+          height: 3px;
+          width: 100%;
+          flex-shrink: 0;
+          opacity: 0.7;
+        }
+        .zone-body {
+          flex: 1;
+          padding: 14px 18px 16px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        .zone-icon {
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .zone-icon-lg {
+          width: 52px;
+          height: 52px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .zone-scroll {
           scrollbar-width: thin;
-          scrollbar-color: #019BDC #374151;
+          scrollbar-color: #019BDC #1e293b;
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #374151; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(to bottom, #019BDC, #22D3EE);
-          border-radius: 3px;
-        }
+        .zone-scroll::-webkit-scrollbar { width: 4px; }
+        .zone-scroll::-webkit-scrollbar-track { background: #1e293b; border-radius: 2px; }
+        .zone-scroll::-webkit-scrollbar-thumb { background: #019BDC; border-radius: 2px; }
         @keyframes scale-up {
-          from { opacity: 0; transform: translateY(16px) scale(0.96); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+          from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.97); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
         }
-        .animate-scale-up { animation: scale-up 0.25s ease-out forwards; }
+        .animate-scale-up { animation: scale-up 0.22s ease-out forwards; }
       `}</style>
     </div>
   );

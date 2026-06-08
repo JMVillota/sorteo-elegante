@@ -13,7 +13,7 @@ import PrizeSelectionScreen from './components/PrizeSelectionScreen';
 import ZoneSelectionScreen from './components/ZoneSelectionScreen';
 import SorteoScreen from './components/SorteoScreen';
 import WinnersScreen from './components/WinnersScreen';
-import logoTransparente from './assets/logo-transparente.png';
+import logoProdispro from './assets/logo-prodispro.svg';
 
 function App() {
   const [participants, setParticipants] = useState([]);
@@ -24,8 +24,9 @@ function App() {
   const [selectedPrize, setSelectedPrize] = useState(null);
   const [selectedZoneParticipants, setSelectedZoneParticipants] = useState(null);
   const [selectedZoneName, setSelectedZoneName] = useState(null);
-  const [currentUnit, setCurrentUnit] = useState(1);      // unidad actual del premio en curso
-  const [accumulatedWinners, setAccumulatedWinners] = useState([]); // ganadores del premio en curso
+  const [currentUnit, setCurrentUnit] = useState(1);
+  const [accumulatedWinners, setAccumulatedWinners] = useState([]);
+  const [accumulatedLosers, setAccumulatedLosers] = useState([]);  // eliminados entre unidades
   const [completedPrizes, setCompletedPrizes] = useState([]);
   const [systemStats, setSystemStats] = useState(null);
 
@@ -187,31 +188,32 @@ function App() {
   const handleZoneBack = () => {
     setSelectedZoneParticipants(null);
     setSelectedZoneName(null);
-    // Si ya hay ganadores acumulados (venimos de una unidad intermedia), volver a selección de premios
     setCurrentUnit(1);
     setAccumulatedWinners([]);
+    setAccumulatedLosers([]);
     setCurrentScreen('prize-selection');
   };
 
-  // Se llama cuando termina UNA unidad del premio (ronda ganadora completada)
-  const handleUnitComplete = (unitWinner) => {
-    const newAccumulated = [...accumulatedWinners, unitWinner];
-    setAccumulatedWinners(newAccumulated);
+  // Se llama cuando termina UNA unidad (winner + losers de esa unidad)
+  const handleUnitComplete = (unitWinner, unitLosers = []) => {
+    const newAccumulatedWinners = [...accumulatedWinners, unitWinner];
+    const newAccumulatedLosers  = [...accumulatedLosers, ...unitLosers];
+    setAccumulatedWinners(newAccumulatedWinners);
+    setAccumulatedLosers(newAccumulatedLosers);
 
     const nextUnit = currentUnit + 1;
 
     if (nextUnit > selectedPrize.cantidad) {
-      // Todas las unidades completadas → registrar ganadores y volver al inicio
-      setWinners(prev => [...prev, ...newAccumulated]);
+      setWinners(prev => [...prev, ...newAccumulatedWinners]);
       setCompletedPrizes(prev => [...prev, selectedPrize.id]);
       setSelectedPrize(null);
       setSelectedZoneParticipants(null);
       setSelectedZoneName(null);
       setCurrentUnit(1);
       setAccumulatedWinners([]);
+      setAccumulatedLosers([]);
       setCurrentScreen('prize-selection');
     } else {
-      // Quedan más unidades → pedir zona para la siguiente
       setCurrentUnit(nextUnit);
       setSelectedZoneParticipants(null);
       setSelectedZoneName(null);
@@ -228,6 +230,7 @@ function App() {
     setSelectedZoneName(null);
     setCurrentUnit(1);
     setAccumulatedWinners([]);
+    setAccumulatedLosers([]);
     setCurrentScreen('prize-selection');
   };
 
@@ -280,76 +283,58 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 text-white">
-      {/* Header */}
-<header className="bg-gradient-to-r from-slate-800 via-gray-800 to-slate-800 border-b-2 border-prodispro-blue/30 shadow-xl">
-  <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-2 sm:space-x-4">
-        <img src={logoTransparente} alt="Prodispro" className="h-8 sm:h-10 md:h-12" />
-        <div className="hidden sm:block">
-          <p className="text-xs sm:text-sm text-gray-400">Sistema de Sorteos</p>
-        </div>
-      </div>
-      
-      {/* Información del progreso - Mejorada para móvil */}
-      <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-6">
-        <div className="text-center">
-          <div className="text-sm sm:text-lg font-bold text-prodispro-blue">
-            {getCompletedPrizesCount()}/{getTotalPrizesCount()}
-          </div>
-          <div className="text-xs text-gray-400 hidden sm:block">Premios</div>
-        </div>
-        <div className="text-center">
-          <div className="text-sm sm:text-lg font-bold text-green-400">
-            {getCurrentWinnersCount()}
-          </div>
-          <div className="text-xs text-gray-400 hidden sm:block">Ganadores</div>
-        </div>
-        <div className="text-center">
-          <div className="text-sm sm:text-lg font-bold text-yellow-400">
-            {getTotalExpectedWinners()}
-          </div>
-          <div className="text-xs text-gray-400 hidden sm:block">Total</div>
-        </div>
-        {currentScreen === 'sorteo' && selectedPrize && (
-          <div className="text-center hidden md:block">
-            <div className="text-sm font-bold text-yellow-400 truncate max-w-24">
-              {selectedPrize.name}
-            </div>
-            <div className="text-xs text-gray-400">Premio Actual</div>
-          </div>
-        )}
-        {currentScreen === 'sorteo' && selectedZoneName && (
-          <div className="text-center hidden lg:block">
-            <div className="text-sm font-bold text-cyan-300 truncate max-w-28">
-              {selectedZoneName}
-            </div>
-            <div className="text-xs text-gray-400">Zona</div>
-          </div>
-        )}
-      </div>
-      
-      {currentScreen !== 'prize-selection' && currentScreen !== 'winners' && (
-        <button
-          onClick={() => {
-            console.log('🔙 Volviendo a selección de premios');
-            setSelectedZoneParticipants(null);
-            setSelectedZoneName(null);
-            setCurrentScreen('prize-selection');
-          }}
-          className="px-2 sm:px-4 py-1 sm:py-2 bg-prodispro-blue hover:bg-prodispro-blue/80 rounded-lg transition-colors text-xs sm:text-sm"
-        >
-          <span className="hidden sm:inline">Volver al Inicio</span>
-          <span className="sm:hidden">🔙</span>
-        </button>
+    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 text-white overflow-hidden">
+      {/* Header — oculto en pantalla de sorteo para maximizar espacio */}
+<header className={`flex-shrink-0 bg-slate-900/80 backdrop-blur-sm border-b border-white/[0.06] ${currentScreen === 'sorteo' ? 'hidden' : ''}`}>
+  <div className="px-4 py-2 flex items-center gap-4">
+    {/* Logo */}
+    <img src={logoProdispro} alt="Prodispro" className="h-9 flex-shrink-0" />
+
+    {/* Separador */}
+    <div className="h-6 w-px bg-white/10 flex-shrink-0" />
+
+    {/* Pill de progreso */}
+    <div className="flex items-center gap-3 text-xs">
+      <span className="header-pill header-pill--blue">
+        Premios&nbsp;<strong>{getCompletedPrizesCount()}/{getTotalPrizesCount()}</strong>
+      </span>
+      <span className="header-pill header-pill--green">
+        Ganadores&nbsp;<strong>{getCurrentWinnersCount()}</strong>
+      </span>
+      <span className="header-pill header-pill--amber">
+        Total&nbsp;<strong>{getTotalExpectedWinners()}</strong>
+      </span>
+      {currentScreen === 'sorteo' && selectedPrize && (
+        <span className="header-pill header-pill--purple hidden md:flex truncate max-w-40">
+          {selectedPrize.name}
+        </span>
+      )}
+      {currentScreen === 'sorteo' && selectedZoneName && (
+        <span className="header-pill header-pill--cyan hidden lg:flex truncate max-w-40">
+          {selectedZoneName}
+        </span>
       )}
     </div>
+
+    {/* Botón volver */}
+    {currentScreen !== 'prize-selection' && currentScreen !== 'winners' && (
+      <button
+        onClick={() => {
+          setSelectedZoneParticipants(null);
+          setSelectedZoneName(null);
+          setCurrentScreen('prize-selection');
+        }}
+        className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/15 text-white rounded-lg text-xs font-medium transition-colors border border-white/10"
+      >
+        ← Inicio
+      </button>
+    )}
   </div>
 </header>
 
-      {/* Content */}
-      <main className="container mx-auto px-4 py-6">
+      {/* Content — ocupa todo el espacio restante sin scroll de página */}
+      <main className="flex-1 min-h-0 overflow-hidden">
+        <div className={`h-full ${currentScreen === 'sorteo' ? 'p-2' : 'container mx-auto px-3 py-3'}`}>
         {currentScreen === 'prize-selection' && (
           <PrizeSelectionScreen
             prizes={prizes}
@@ -377,6 +362,16 @@ function App() {
             zoneName={selectedZoneName}
             currentUnit={currentUnit}
             onUnitComplete={handleUnitComplete}
+            previousWinners={accumulatedWinners}
+            previousLosers={accumulatedLosers}
+            onBack={() => {
+              setSelectedZoneParticipants(null);
+              setSelectedZoneName(null);
+              setCurrentUnit(1);
+              setAccumulatedWinners([]);
+              setAccumulatedLosers([]);
+              setCurrentScreen('prize-selection');
+            }}
           />
         )}
         
@@ -387,6 +382,7 @@ function App() {
             onReset={handleResetSorteo}
           />
         )}
+        </div>
       </main>
     </div>
   );
