@@ -1,5 +1,5 @@
 // src/components/WinnersScreen.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Confetti from 'react-confetti';
 import useWindowSize from '../hooks/useWindowSize';
 import logoProdispro from '../assets/logo-prodispro.svg';
@@ -8,6 +8,7 @@ const WinnersScreen = ({ winners, onReset }) => {
   const { width, height } = useWindowSize();
   const [showConfetti, setShowConfetti] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const uniqueWinners = winners.filter((winner, index, self) =>
     index === self.findIndex(w =>
@@ -26,6 +27,237 @@ const WinnersScreen = ({ winners, onReset }) => {
   useEffect(() => {
     setShowConfetti(true);
   }, []);
+
+  const generateWinnersImage = useCallback(async () => {
+    if (isCapturing) return;
+    setIsCapturing(true);
+    try {
+      const top3 = uniqueWinners.slice(0, 3);
+      const S = 1080;
+      const canvas = document.createElement('canvas');
+      canvas.width = S;
+      canvas.height = S;
+      const ctx = canvas.getContext('2d');
+
+      // ── Cargar logo SVG ──
+      const loadSvgAsImg = async (url) => {
+        try {
+          const resp = await fetch(url);
+          const svgText = await resp.text();
+          const blob = new Blob([svgText], { type: 'image/svg+xml' });
+          const blobUrl = URL.createObjectURL(blob);
+          const img = await new Promise((res) => {
+            const i = new Image(); i.crossOrigin = 'anonymous';
+            i.onload = () => res(i); i.onerror = () => res(null); i.src = blobUrl;
+          });
+          URL.revokeObjectURL(blobUrl);
+          return img;
+        } catch { return null; }
+      };
+      const logoImg = await loadSvgAsImg(logoProdispro);
+
+      // ── Helpers ──
+      const roundRect = (x, y, w, h, r, fill, stroke, strokeW = 1) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+        if (fill)   { ctx.fillStyle = fill;     ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = strokeW; ctx.stroke(); }
+      };
+      const circ = (cx, cy, r, fill, stroke, sw = 2) => {
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        if (fill)   { ctx.fillStyle = fill;     ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw; ctx.stroke(); }
+      };
+      const txt = (t, x, y, size, weight, color, align = 'left', maxW) => {
+        ctx.font = `${weight} ${size}px "Segoe UI", Arial, sans-serif`;
+        ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+        maxW ? ctx.fillText(t, x, y, maxW) : ctx.fillText(t, x, y);
+      };
+
+      // ── Icono de persona en canvas ──
+      const drawPerson = (cx, cy, r, color) => {
+        // cabeza
+        circ(cx, cy - r * 0.28, r * 0.32, color, null);
+        // cuerpo (semicírculo inferior)
+        ctx.beginPath();
+        ctx.arc(cx, cy + r * 0.18, r * 0.52, Math.PI, 0);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+      };
+
+      // ── FONDO BLANCO con gradiente suave ──
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, S, S);
+
+      // Gradiente sutil azul top-left
+      const bgGrad = ctx.createLinearGradient(0, 0, S * 0.6, S * 0.5);
+      bgGrad.addColorStop(0, 'rgba(1,155,220,0.07)');
+      bgGrad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, S, S);
+
+      // Gradiente sutil verde bottom-right
+      const bgGrad2 = ctx.createLinearGradient(S, S, S * 0.4, S * 0.5);
+      bgGrad2.addColorStop(0, 'rgba(34,197,94,0.06)');
+      bgGrad2.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = bgGrad2;
+      ctx.fillRect(0, 0, S, S);
+
+      // Círculos decorativos tenues
+      circ(S - 60, 60,  220, 'rgba(1,155,220,0.05)', null);
+      circ(80,     S - 80, 180, 'rgba(34,197,94,0.05)', null);
+      circ(S * 0.5, S * 0.5, 340, 'rgba(1,155,220,0.03)', null);
+
+      // ── Franja top azul ──
+      const topBar = ctx.createLinearGradient(0, 0, S, 0);
+      topBar.addColorStop(0, '#019BDC'); topBar.addColorStop(0.5, '#06b6d4'); topBar.addColorStop(1, '#019BDC');
+      ctx.fillStyle = topBar;
+      ctx.fillRect(0, 0, S, 8);
+
+      // ── HEADER ──
+      const date = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      // Logo Prodispro — más grande
+      if (logoImg) {
+        const lH = 100;
+        const lW = logoImg.naturalWidth * (lH / logoImg.naturalHeight);
+        ctx.drawImage(logoImg, 50, 12, Math.min(lW, 380), lH);
+      } else {
+        txt('PRODISPRO', 60, 90, 44, '900', '#019BDC', 'left');
+      }
+
+      // Chip año
+      roundRect(S - 170, 34, 110, 44, 22, '#019BDC', null);
+      txt('2026', S - 115, 62, 18, '800', '#ffffff', 'center');
+
+      // Separador bajo header
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(50, 124); ctx.lineTo(S - 50, 124); ctx.stroke();
+
+      // Título principal
+      txt('¡Ganadores del Sorteo!', 50, 192, 68, '900', '#0f172a', 'left');
+      txt(date, 50, 224, 19, '500', '#64748b', 'left');
+
+      // Separador bajo título
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(50, 244); ctx.lineTo(S - 50, 244); ctx.stroke();
+
+      // ── PODIO: orden 2-1-3 ──
+      // Header termina en y=244. Footer empieza en y=1023. Espacio útil: 779px.
+      // Pos1: avatar tope = 284 (justo bajo separador), card+bar termina en ~940
+      // Pos2/3: cardY más abajo para efecto escalonado
+      // Header termina ~y=250. Footer ~y=1023. Espacio útil ~773px.
+      // pos1: avatarCY=480-100-26=354, barra termina=480+185+8+150=823. Pos3: 575+185+8+80=848. OK
+      const PODIUM_CFG = [
+        { pos: 2, color: '#64748b', accent: '#94a3b8', cx: 200, avatarR: 80,  barH: 120, cardY: 610 },
+        { pos: 1, color: '#b45309', accent: '#EAB308', cx: 540, avatarR: 100, barH: 150, cardY: 560 },
+        { pos: 3, color: '#9a3412', accent: '#F97316', cx: 880, avatarR: 70,  barH: 80,  cardY: 650 },
+      ];
+      const MEDAL = '🏆';
+
+      PODIUM_CFG.forEach(({ pos, color, accent, cx, avatarR, barH, cardY }) => {
+        const w = top3[pos - 1];
+        if (!w) return;
+        const isFirst = pos === 1;
+        const avatarCY = cardY - avatarR - 26;
+        const cardW    = isFirst ? 340 : 300;
+        const cardX    = cx - cardW / 2;
+        const cardH    = 185;
+
+        // Sombra suave de la card
+        ctx.shadowColor   = `rgba(0,0,0,0.10)`;
+        ctx.shadowBlur    = 24;
+        ctx.shadowOffsetY = 8;
+        roundRect(cardX, cardY, cardW, cardH, 20, '#ffffff', accent + '40', 1.5);
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+        // Línea top de la card (color del podio)
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.moveTo(cardX + 20, cardY);
+        ctx.lineTo(cardX + cardW - 20, cardY);
+        ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + 20, 20);
+        ctx.lineTo(cardX + cardW, cardY + 6);
+        ctx.lineTo(cardX, cardY + 6);
+        ctx.lineTo(cardX, cardY + 20);
+        ctx.arcTo(cardX, cardY, cardX + 20, cardY, 20);
+        ctx.closePath();
+        ctx.fill();
+
+        // Glow avatar
+        const glow = ctx.createRadialGradient(cx, avatarCY, 0, cx, avatarCY, avatarR * 2);
+        glow.addColorStop(0, accent + '25'); glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(cx, avatarCY, avatarR * 2, 0, Math.PI * 2); ctx.fill();
+
+        // Avatar círculo fondo
+        circ(cx, avatarCY, avatarR, accent + '18', accent, isFirst ? 4 : 3);
+
+        // Icono persona
+        drawPerson(cx, avatarCY, avatarR * 0.78, accent);
+
+        // Medalla igual para todos
+        ctx.font = `${isFirst ? 36 : 28}px serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText(MEDAL, cx, avatarCY - avatarR - 6);
+
+        // ── Contenido card ──
+        // Nombre completo
+        const nombre = w.participant.name.toUpperCase();
+        txt(nombre, cx, cardY + 40, isFirst ? 19 : 16, '800', '#0f172a', 'center', cardW - 28);
+
+        // Divisor
+        ctx.strokeStyle = '#f1f5f9'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cardX + 18, cardY + 54); ctx.lineTo(cardX + cardW - 18, cardY + 54); ctx.stroke();
+
+        // Provincia, Ciudad
+        const ubicacion = [w.participant.provincia, w.participant.ciudad].filter(Boolean).join(', ');
+        if (ubicacion) {
+          roundRect(cardX + 14, cardY + 64, cardW - 28, 34, 10, '#f8fafc', '#e2e8f0', 1);
+          txt('📍', cardX + 22, cardY + 86, 15, '400', '#64748b', 'left');
+          txt(ubicacion, cardX + 44, cardY + 86, 15, '600', '#334155', 'left', cardW - 58);
+        }
+
+        // Vendedor
+        if (w.participant.vendedor) {
+          roundRect(cardX + 14, cardY + 104, cardW - 28, 34, 10, '#f8fafc', '#e2e8f0', 1);
+          txt('👤', cardX + 22, cardY + 126, 15, '400', '#64748b', 'left');
+          txt(w.participant.vendedor, cardX + 44, cardY + 126, 15, '600', '#334155', 'left', cardW - 58);
+        }
+
+      });
+
+      // ── Footer ──
+      // Línea separadora
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, S - 58); ctx.lineTo(S, S - 58); ctx.stroke();
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, S - 57, S, 57);
+
+      txt('PRODISPRO Cia. Ltda. · Sistema de Sorteos 2026', 60, S - 20, 12, '600', '#94a3b8', 'left');
+      txt('#PRODISPRO2026 · sorteo oficial', S - 60, S - 20, 12, '500', '#94a3b8', 'right');
+
+      // Franja bottom
+      const botBar = ctx.createLinearGradient(0, 0, S, 0);
+      botBar.addColorStop(0, '#019BDC'); botBar.addColorStop(0.5, '#22C55E'); botBar.addColorStop(1, '#019BDC');
+      ctx.fillStyle = botBar;
+      ctx.fillRect(0, S - 6, S, 6);
+
+      // ── Descargar ──
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `ganadores-prodispro-${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.png`;
+      a.click();
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [isCapturing, uniqueWinners]);
 
   const getPrizeImage = (prize) => {
     if (!prize.imagen?.trim()) return null;
@@ -367,6 +599,13 @@ const WinnersScreen = ({ winners, onReset }) => {
             🎊
           </button>
 
+          <button onClick={generateWinnersImage} disabled={isCapturing || !uniqueWinners.length}
+            title="Descargar imagen de ganadores"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100">
+            <span className="text-lg leading-none">{isCapturing ? '⏳' : '🖼️'}</span>
+            <span className="text-xs">{isCapturing ? 'Generando...' : 'Imagen'}</span>
+          </button>
+
           <button onClick={generatePDF} disabled={isGeneratingPDF || !uniqueWinners.length}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100">
             <span className="text-lg leading-none">{isGeneratingPDF ? '⏳' : '📄'}</span>
@@ -438,12 +677,13 @@ const WinnersScreen = ({ winners, onReset }) => {
         </div>
       )}
 
+
+
       <style>{`
         .winners-scroll { scrollbar-width: thin; scrollbar-color: #334155 #1e293b; }
         .winners-scroll::-webkit-scrollbar { width: 4px; }
         .winners-scroll::-webkit-scrollbar-track { background: #1e293b; }
         .winners-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
-
       `}</style>
     </div>
   );
